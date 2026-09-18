@@ -1,0 +1,13 @@
+*.elc
+*.eln
+*~
+\#*\#
+.\#*
+.DS_Store
+.agent-shell/
+__pycache__/
+*.pyc
+*.sqlite
+*.sqlite-*
+/coverage/
+/tmp/
