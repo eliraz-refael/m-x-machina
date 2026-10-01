@@ -1,7 +1,7 @@
 # Backlog: from prototype to daily use
 
-Created 2026-10-01. This is the working plan; all items below are planned, not
-implemented. Priorities describe sequence, not promised dates. The current
+Created 2026-10-01. Checked items are implemented; unchecked items are planned.
+Priorities describe sequence, not promised dates. The current
 milestone is a checkpoint, not a stable release.
 
 ## Current baseline
@@ -22,13 +22,17 @@ interface on an existing agent is not currently exposed.
 Goal: when an agent cannot start or resume, the user can understand why and take
 an explicit recovery action without losing its saved identity.
 
-- [ ] **REC-1 — Diagnostic view.** Show the selected interface/profile, executable
+- [x] **REC-1 — Diagnostic view.** Show the selected interface/profile, executable
   and dependency availability, recorded and actual worktree/branch, process
   state, saved conversation ID, latest failure, and hook-bridge health. Provide
   a copyable diagnostic summary that omits credentials and conversation text.
   **Done when:** missing executable/profile, missing worktree, changed branch,
   process exit and missing SessionStart each have a distinguishable explanation;
   opening diagnostics never launches a process or changes records.
+  **Completed 2026-10-01:** `i` opens local checks; `g` refreshes, `w` copies the
+  summary, and `q` returns. Raw error detail stays outside the copied summary.
+  Git inspection runs read-only commands; no agent is launched. See
+  [validation](validation.md) for read-only, failure-path and Evil checks.
 - [ ] **REC-2 — Worktree and branch recovery.** Offer an explicit way to associate
   a stopped agent with a relocated worktree or accept its current branch. Show
   the old/new association and validate the chosen Git checkout before saving.
@@ -50,8 +54,8 @@ an explicit recovery action without losing its saved identity.
   replay, correct unread behavior and useful failure messages. Record CLI/package
   versions and any interface-specific limits. Depends on REC-1 through REC-3.
 
-**First implementation slice:** REC-1 as a small diagnostic view built on the
-existing details command. Then REC-2, REC-3, and the REC-4 pilot.
+**Next implementation slice:** REC-2, worktree and branch recovery. REC-1 is
+complete; REC-3 and the REC-4 pilot follow recovery.
 
 ## 2. Attention and navigation
 

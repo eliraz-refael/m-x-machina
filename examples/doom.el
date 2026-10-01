@@ -8,6 +8,12 @@
 (with-eval-after-load 'evil
   (add-hook 'emacs-agents-eat-setup-hook #'emacs-agents-eat-setup-evil)
   (add-hook 'emacs-agents-vterm-setup-hook #'emacs-agents-vterm-setup-evil)
+  (evil-set-initial-state 'emacs-agents-diagnostics-mode 'normal)
+  (with-eval-after-load 'emacs-agents-diagnostics
+    (evil-define-key 'normal emacs-agents-diagnostics-mode-map
+      (kbd "q") #'emacs-agents-diagnostics-return
+      (kbd "g") #'emacs-agents-diagnostics-refresh
+      (kbd "w") #'emacs-agents-diagnostics-copy))
   (evil-set-initial-state 'emacs-agents-transcript-mode 'normal)
   (with-eval-after-load 'emacs-agents-transcript
     (evil-define-key 'normal emacs-agents-transcript-mode-map

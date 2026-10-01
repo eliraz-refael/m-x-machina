@@ -6,7 +6,7 @@ VTERM_LOAD_PATH ?=
 
 .PHONY: test check test-integration test-eat test-vterm
 test:
-	$(EMACS) --batch -Q -L lisp --eval '(setq load-prefer-newer t)' -l test/emacs-agents-archive-tests.el -f ert-run-tests-batch-and-exit
+	$(EMACS) --batch -Q -L lisp --eval '(setq load-prefer-newer t)' -l test/emacs-agents-archive-tests.el -l test/emacs-agents-diagnostics-tests.el -f ert-run-tests-batch-and-exit
 
 check:
 	$(EMACS) --batch -Q -L lisp --eval '(setq byte-compile-error-on-warn t)' -f batch-byte-compile lisp/*.el

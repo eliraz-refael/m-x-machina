@@ -4,9 +4,19 @@ Validated locally on 2026-10-01 with Emacs 31.1 (SQLite enabled), the installed 
 installed ACP and shell-maker dependencies. The supported minimum Emacs version
 is declared as 29.1; a minimum-version CI run is still needed before release.
 
-All 65 deterministic tests passed (40 registry/UI/archive tests, 9 ACP integration
+All 72 deterministic tests passed (47 registry/UI/archive/diagnostic tests, 9 ACP integration
 tests, 10 EAT integration tests, 4 vterm integration tests, and 2 transcript tests).
 The suite exercises:
+
+- Diagnostic explanations for missing profiles/executables/dependencies,
+  configuration errors, missing worktrees, branch mismatches, process exit,
+  missing SessionStart and inactive hook polling/event files.
+- Diagnostic inspection of a closed registry preserves saved live observations,
+  conversation IDs, runs and unread flags without opening the manager or migrating.
+  A missing registry is not created. ACP client factories are never invoked.
+- Diagnostic refresh/copy/return preserves window count and unsent buffer text;
+  copies exclude error, argument and environment canaries while retaining a useful
+  failure classification. No event consumption or agent launch occurs.
 
 - SQLite reopen with durable profile, worktree, and conversation identity.
 - Schema v1/v2 upgrades preserve live identities and observations; schema v3
@@ -96,6 +106,13 @@ The transcript test also passed with Evil's actual V, j, y selection/copy comman
 The 2026-10-01 checkpoint reran the complete 65-test suite, byte compilation, and
 four focused Evil checks: archive restore, EAT fullscreen scrolling, vterm
 fullscreen scrolling, and transcript selection/copy. All passed.
+
+REC-1 reran all 72 tests and byte compilation with warnings as errors. Its new
+diagnostic refresh/copy/return test also passed with Evil enabled. The view was
+loaded into the user's running Emacs and checked against all three saved records:
+it distinguished an unavailable demo profile, a configured stopped ACP agent
+whose executable was not declared, and a configured stopped EAT agent with its
+executable available. No agents were running or launched during that check.
 
 The user successfully stopped and resumed a real Claude EAT conversation, with
 the saved ID and on-disk transcript confirmed. A full Emacs restart with the live

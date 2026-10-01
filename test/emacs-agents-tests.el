@@ -36,6 +36,7 @@
        (set-frame-parameter nil 'emacs-agents-conversation-layout nil)
        (dolist (buffer (buffer-list))
          (when (or (member (buffer-name buffer) '("*Emacs Agents*" "*Agent Overview*" "*Archived Agents*"))
+                   (eq (buffer-local-value 'major-mode buffer) 'emacs-agents-diagnostics-mode)
                    (buffer-local-value 'emacs-agents--managed-id buffer))
            (with-current-buffer buffer (set-buffer-modified-p nil))
            (let ((kill-buffer-query-functions nil)) (kill-buffer buffer))))

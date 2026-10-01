@@ -434,24 +434,13 @@ Never replay input or create a replacement for a saved conversation."
   (emacs-agents--select-main-window)
   (magit-status (emacs-agents-session-directory (emacs-agents-session id))))
 
-(defun emacs-agents-details (id)
-  "Display session ID's persisted identity and last diagnostic."
-  (interactive (list (emacs-agents--read-id)))
-  (let ((s (emacs-agents-session id)))
-    (with-help-window "*Agent session*"
-      (princ (format "%s\n\nSession: %s\nProfile: %s\nWorktree: %s\nBranch: %s\nConversation: %s\nRun: %s\nProcess: %s\nActivity: %s\n\n%s\n"
-                     (emacs-agents-session-name s) id (emacs-agents-session-profile s)
-                     (emacs-agents-session-directory s) (emacs-agents-session-branch s)
-                     (or (emacs-agents-session-conversation s) "Not captured yet")
-                     (or (emacs-agents-session-run s) "Not launched")
-                     (emacs-agents-session-status s) (emacs-agents-session-activity s)
-                     (or (emacs-agents-session-error s) "")))
-      (princ (format "\nFolder: %s\nProject: %s\nModel: %s\nUnread: %s\nArchived: %s\n"
-                     (if (string-empty-p (emacs-agents-session-folder s)) "root" (emacs-agents-session-folder s))
-                     (or (emacs-agents-session-project s) "Not recorded")
-                     (or (emacs-agents-session-model s) "Not reported")
-                     (if (emacs-agents-unread-p s) "yes" "no")
-                     (if (emacs-agents-archived-p s) "yes" "no"))))))
+(autoload 'emacs-agents-diagnostics "emacs-agents-diagnostics" nil t)
+
+(defun emacs-agents-details (&optional id)
+  "Display local diagnostics for ID, or choose an agent interactively."
+  (interactive)
+  (if id (emacs-agents-diagnostics id)
+    (call-interactively #'emacs-agents-diagnostics)))
 
 (defun emacs-agents-refresh ()
   "Refresh agent views and cached counts without changing keyboard focus."

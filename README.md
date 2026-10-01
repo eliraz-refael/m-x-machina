@@ -313,7 +313,7 @@ in slot 0, such as Treemacs. Narrow frames may need smaller pane sizes.
 | `u` | Acknowledge unread output |
 | `RET` / `r` | Open, start, or resume the selected session |
 | `x` | Stop its process and retain the session |
-| `i` | Inspect full IDs and the last diagnostic |
+| `i` | Diagnose the selected agent without starting it |
 | `TAB` | Expand/collapse sidebar details |
 | `D` | Open the expanded dashboard (sidebar) |
 | `s` | Return to the sidebar (dashboard) |
@@ -334,6 +334,27 @@ backend conversation ID has been captured yet.
 The session ID identifies the managed record. The conversation ID identifies the
 backend conversation. Each launch gets a new run ID; reopening a live buffer does
 not launch another process.
+
+Press `i` in the sidebar or dashboard, or run `M-x emacs-agents-diagnostics`,
+to inspect an agent. Diagnostics fills the main pane; `g` refreshes the snapshot,
+`w` copies its summary, and `q` returns to the previous buffer. These keys also
+work with the optional Evil setup. Inspecting an agent leaves its unread flag
+and saved records unchanged, including when the manager has not opened its
+registry yet.
+
+Checks distinguish a missing profile or executable, unavailable dependencies,
+a missing checkout or changed branch, an exited process, and unconfirmed Claude
+SessionStart. Terminal checks show the event poller and event-file availability;
+they do not consume events. Authentication and backend history are not contacted.
+Dependency presence does not establish version compatibility or successful login.
+For agent-shell profiles, diagnostics uses a tracked process's executable when
+available. Otherwise, optionally add `(:diagnostic-command . "executable-name")`
+to the profile alist; client factories are never invoked to discover a command.
+
+The copied summary includes local paths, agent metadata and full IDs, but excludes
+command arguments, environment values, conversation contents and raw failure text.
+The latest raw failure appears separately in the local view and is omitted by
+`w`; copying the entire buffer manually also copies that failure detail.
 
 The implementation stops managed ACP transports when the Emacs process exits
 normally. Closing a client frame while an Emacs daemon stays alive does not stop
