@@ -1,8 +1,8 @@
 # Session management design
 
 This document records the intended full design. The README describes the current
-v0.1 implementation: an SQLite registry, existing worktrees, an agent-shell
-adapter, and explicit conversation restoration. Background hosting and PR/CI
+v0.1 implementation: an SQLite registry, existing or newly created worktrees,
+agent-shell/ACP and Claude Code/EAT adapters, and explicit conversation restoration. Background hosting and PR/CI
 records below are not implemented yet. The initial schema folds the single
 conversation reference into the session and run records; conversation replacement
 and forking are not supported.
@@ -144,6 +144,74 @@ Stopping a process, archiving a record, and deleting a worktree are separate act
 
 ## Emacs integration
 
+The overview uses a dedicated native side window, with conversations filling
+the adjacent editing area. The full table remains available separately. Expanding
+sidebar entries is read-only; opening or focusing a stopped conversation is an
+explicit start/resume action. A frame parameter holds the temporary window
+configuration during focus. A separate frame parameter retains the editor layout
+from before opening a conversation. Closing restores that layout without stopping
+agents or killing conversation buffers; focus can be nested inside this view.
+
+Lifecycle observations refresh the overview and cached modeline counts together.
+The UI distinguishes working, ready, approval, starting, stopped, unknown and
+error, with process state taking precedence over stale activity. It does not
+infer questions or task completion from conversation text. Each sidebar entry
+reveals its recorded worktree directory under TAB. Collapsed entries occupy one
+row, with a subtle active-conversation background independent of sidebar cursor
+navigation. Colored dots or spinners convey status; TAB reveals the full label.
+Deep indentation is capped visually, and hover retains the complete folder path.
+
+Schema v2 adds logical folder paths, explicit empty folders, a per-session unread
+flag, project label and last reported model. Folder paths are UI organization;
+they never become filesystem operations. Every ancestor is stored, with no fixed
+depth limit. Component-wise ordering keeps descendants beside their parents even
+when sibling names share a prefix. Moving/renaming agents does not alter backend
+identity or worktrees. Empty model notices preserve the last reported model.
+
+Schema v3 adds an archived flag. Active listings and counts exclude archived
+records; the archive view restores records without starting a process. Archiving
+or deleting a running agent requires explicit stop authorization. Deletion removes
+the session and its run records transactionally, keeps worktree/history files,
+and detaches retained buffers from the deleted ID. Late lifecycle events for a
+deleted ID are ignored. Migrating an already-open registry preserves live states.
+
+Backend display notices use a small normalized boundary: `message` for new
+assistant output and `metadata` for reported model information. Only the current
+live run can update these fields. The agent-shell adapter suppresses initialization
+replay and separates message chunks from thought/tool output. The shared Claude terminal bridge runs
+Claude Code with a chosen UUID, confirms it through SessionStart, and resumes by
+that exact ID. Private per-run hook logs feed lifecycle, message and model events;
+only submitted turns produce unread state. No terminal text is parsed. Account
+environments are local to the subprocess; hook settings are supplied per launch.
+Run files are removed after stop, exit or failed setup, once the process is gone.
+Colors, folders, unread state and native Emacs
+headers do not depend on ACP or parse terminal output.
+
+Evil normal/visual states use EAT's Emacs navigation mode. A managed terminal's
+navigation map routes page and wheel scrolling to Claude when EAT's
+public alternate-display predicate is true. Ordinary scrollback uses Emacs
+navigation. The map is buffer-local and precedes terminal and Evil input maps;
+Evil insert-state editing chords remain intact. While browsing fullscreen
+history, the fixed prompt does not count as seeing the latest output; explicitly
+jumping to the latest output restores read acknowledgment.
+
+A separate, explicitly refreshed transcript snapshot reads only the selected Claude session's saved
+user/assistant text, so terminal redraws cannot disturb selection. It retains the
+agent association for the sidebar background but never auto-acknowledges live
+output. Internal command envelopes are omitted. New messages mark the snapshot
+stale without changing its contents or selection; explicit refresh clears it.
+
+Activity and unread state are independent. Automatic read acknowledgment requires
+the selected conversation to show its latest output in an active frame for a
+continuous configurable interval (5 seconds by default). Window/buffer changes,
+lost visibility/focus, new assistant output, and long event-loop gaps reset the
+countdown. Time is not accumulated across visits. A user can also explicitly
+mark a session read immediately. The spinner renders cached state and does
+not query SQLite. A short UI heartbeat animates working agents and checks unread
+visibility; it stops when neither working nor unread sessions remain. Header
+animation visits only visible registered conversation buffers, and sidebar
+window observers are removed when the sidebar closes or the manager shuts down.
+
 Build the dashboard as an ordinary Emacs mode with completion and commands that
 also work without the dashboard. Session context should carry into file
 navigation, project commands, and Magit. Evil bindings and Doom workspace support
@@ -151,20 +219,27 @@ belong in optional integrations.
 
 Keep the terminal backend separate from agent identity and the process host.
 Select the initial interactive transport after verifying reliable conversation
-identity capture and resume. EAT, vterm, and structured agent interfaces remain
-candidates, not promised interchangeable implementations.
+identity capture and resume. EAT, vterm and agent-shell/ACP share the transport
+boundary. Creation groups profiles by agent, account and interface, while the
+registry retains the existing durable profile IDs. EAT and vterm share Claude's
+hooks, resume flags and account environment. A separate per-agent eshell starts
+in the worktree and preserves its shell state on revisit; it is not a managed
+agent process and does not acknowledge agent output.
 
-## Decisions to resolve before implementation
+## Remaining decisions and validation
 
-- First live provider pilot through the initial agent-shell adapter; identity,
-  resume, and events have been validated with a deterministic ACP fixture.
+The [backlog](backlog.md) tracks implementation priorities and acceptance checks.
+
+- Live provider pilots; identity, resume, and events have been validated with
+  deterministic ACP and actual EAT/vterm fixtures, plus a real Claude EAT
+  stop/resume pilot. Full real-provider restart and broader interface validation
+  remain open.
 - External process host for optional background execution and its supported
   platforms; verify terminal reattachment and event capture while Emacs is closed.
 - Confirm the proposed default of stopping agents with Emacs.
-- Terminal adapters beyond the initial agent-shell interactive transport.
+- Terminal adapters for CLIs beyond Claude Code.
 - Minimum-version validation for the declared Emacs 29.1+ SQLite requirement.
 - Final package name.
 
-Start with one end-to-end session lifecycle. Verify identity capture, failed
-resume behavior, stale events after restart, and persistence across Emacs
-restarts before extending to additional backends or automatic orchestration.
+The next milestone is recovery and diagnostics. Extend the validated session
+lifecycle before adding more backends or automatic orchestration.

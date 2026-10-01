@@ -1,0 +1,121 @@
+;;; emacs-agents-vterm-tests.el --- Real native terminal adapter tests -*- lexical-binding: t; -*-
+;; SPDX-License-Identifier: GPL-3.0-or-later
+(require 'vterm)
+(load (expand-file-name "emacs-agents-eat-tests.el" (file-name-directory (or load-file-name buffer-file-name))) nil t)
+
+(ert-deftest emacs-agents-vterm-lifecycle-account-resume-and-exit ()
+  (emacs-agents-test-with-eat
+    (let* ((emacs-agents-vterm-profiles 'inherit)
+           ;; Exercise quoting in the command used by vterm's shell launcher.
+           (script (expand-file-name "fake 'claude $.py" temporary))
+           (_ (copy-file (expand-file-name "test/fake-claude.py" emacs-agents-test-root) script))
+           (_ (setf (alist-get :command (car emacs-agents-eat-profiles)) (list "python3" script)))
+           (id (emacs-agents-create "Native terminal" repo "test-eat-vterm"))
+           (buffer (emacs-agents-start id)))
+      (emacs-agents-open id)
+      (emacs-agents-eat-test-wait
+       (lambda () (equal (emacs-agents-session-status (emacs-agents-session id)) "live")))
+      (should (derived-mode-p 'vterm-mode))
+      (should (equal (emacs-agents-session-model (emacs-agents-session id)) "offline-terminal-model"))
+      (should (eq (key-binding (kbd "C-c C-t")) #'emacs-agents-transcript))
+      (should-not (kill-buffer buffer))
+      (process-send-string (get-buffer-process buffer) "/ask\n")
+      (emacs-agents-eat-test-wait
+       (lambda () (equal (emacs-agents-session-activity (emacs-agents-session id)) "approval")))
+      (process-send-string (get-buffer-process buffer) "/approve\n")
+      (emacs-agents-eat-test-wait
+       (lambda () (emacs-agents-unread-p (emacs-agents-session id))))
+      (let ((sid (emacs-agents-session-conversation (emacs-agents-session id)))
+            (run-directory emacs-agents-claude--run-directory))
+        (emacs-agents-stop id)
+        (should-not (file-exists-p run-directory))
+        (setq buffer (emacs-agents-start id))
+        (emacs-agents-open id)
+        (emacs-agents-eat-test-wait
+         (lambda () (equal (emacs-agents-session-status (emacs-agents-session id)) "live")))
+        (should (equal sid (emacs-agents-session-conversation (emacs-agents-session id))))
+        (with-temp-buffer
+          (insert-file-contents (expand-file-name "claude/launches.jsonl" temporary))
+          (goto-char (point-min))
+          (forward-line)
+          (let ((launch (json-parse-string (buffer-substring (point) (line-end-position)) :object-type 'alist)))
+            (should (equal (alist-get 'resume launch) sid))
+            (should (equal (alist-get 'account launch) "fixture-account"))))
+        (setq run-directory emacs-agents-claude--run-directory)
+        (process-send-string (get-buffer-process buffer) "/exit\n")
+        (emacs-agents-eat-test-wait
+         (lambda () (equal (emacs-agents-session-status (emacs-agents-session id)) "exited")))
+        (should (buffer-live-p buffer))
+        (should-not (file-exists-p run-directory))
+        (should-not emacs-agents-claude--timer)))))
+
+(ert-deftest emacs-agents-vterm-startup-failure-cleans-up ()
+  (emacs-agents-test-with-eat
+    (let ((emacs-agents-vterm-profiles 'inherit) buffer directory)
+      (let ((emacs-agents-vterm-setup-hook
+             (list (lambda () (setq buffer (current-buffer) directory emacs-agents-claude--run-directory)
+                     (error "Intentional vterm setup failure"))))
+            (id (emacs-agents-create "Failure" repo "test-eat-vterm")))
+        (should-error (emacs-agents-start id))
+        (should-not (gethash id emacs-agents--running))
+        (should-not (get-buffer-process buffer))
+        (should-not (buffer-local-value 'emacs-agents-claude--timer buffer))
+        (should-not (file-exists-p directory))
+        (should (equal (emacs-agents-session-status (emacs-agents-session id)) "failed"))))))
+
+(ert-deftest emacs-agents-vterm-fullscreen-streaming-navigation ()
+  (emacs-agents-test-with-eat
+    (let* ((emacs-agents-vterm-profiles 'inherit)
+           (id (emacs-agents-create "Streaming" repo "test-eat-vterm"))
+           (buffer (emacs-agents-start id)))
+      (emacs-agents-open id)
+      (emacs-agents-eat-test-wait
+       (lambda () (equal (emacs-agents-session-status (emacs-agents-session id)) "live")))
+      (process-send-string (get-buffer-process buffer) "/fullscreen\n")
+      (emacs-agents-eat-test-wait (lambda () (emacs-agents-eat-test-screen-number "History row")))
+      (when (bound-and-true-p evil-mode)
+        (evil-normal-state)
+        (should (eq (key-binding (kbd "C-u")) #'emacs-agents-vterm-scroll-up)))
+      (let ((top (emacs-agents-eat-test-screen-number "History row")))
+        (call-interactively (key-binding (kbd "<prior>")))
+        (emacs-agents-eat-test-wait
+         (lambda () (< (emacs-agents-eat-test-screen-number "History row") top))))
+      (should-not (emacs-agents-vterm--read-position))
+      (let ((top (emacs-agents-eat-test-screen-number "History row"))
+            (count (emacs-agents-eat-test-screen-number "STREAM COUNT")))
+        (emacs-agents-eat-test-wait
+         (lambda () (> (emacs-agents-eat-test-screen-number "STREAM COUNT") (+ count 2))))
+        (should (= top (emacs-agents-eat-test-screen-number "History row"))))
+      (emacs-agents-vterm-latest)
+      (emacs-agents-eat-test-wait
+       (lambda () (= (emacs-agents-eat-test-screen-number "History row")
+                     (- (emacs-agents-eat-test-screen-number "STREAM COUNT") 10))))
+      (should (emacs-agents-vterm--read-position))
+      (when (bound-and-true-p evil-mode)
+        (evil-insert-state)
+        (should-not (eq (key-binding (kbd "C-u")) #'emacs-agents-vterm-scroll-up))
+        (should (eq (key-binding (kbd "RET")) #'vterm-send-return))))))
+
+(ert-deftest emacs-agents-vterm-classic-copy-mode-scrolls-buffer ()
+  (emacs-agents-test-with-eat
+    (let* ((emacs-agents-vterm-profiles 'inherit)
+           (id (emacs-agents-create "Scrollback" repo "test-eat-vterm"))
+           (buffer (emacs-agents-start id)))
+      (emacs-agents-open id)
+      (emacs-agents-eat-test-wait
+       (lambda () (equal (emacs-agents-session-status (emacs-agents-session id)) "live")))
+      (process-send-string (get-buffer-process buffer) "/long\n")
+      (emacs-agents-eat-test-wait (lambda () (string-match-p "Long row 3999" (buffer-string))))
+      (vterm-copy-mode 1)
+      (should-not (emacs-agents-vterm--read-position))
+      (goto-char (point-max))
+      (let ((position (point)))
+        (emacs-agents-vterm-scroll-up)
+        (should (< (point) position))
+        (should vterm-copy-mode))
+      (should (string-match-p "Long row 0000" (buffer-string)))
+      (emacs-agents-vterm-latest)
+      (should-not vterm-copy-mode)
+      (should (emacs-agents-vterm--read-position)))))
+
+(provide 'emacs-agents-vterm-tests)

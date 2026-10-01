@@ -5,6 +5,10 @@
 ;; and restoration requests: upstream can otherwise fall back to new sessions.
 ;;; Code:
 (require 'cl-lib)
+(require 'emacs-agents-transport)
+(declare-function emacs-agents--transport-fail "emacs-agents-backend")
+(declare-function emacs-agents-backend-configs "emacs-agents-backend")
+(declare-function emacs-agents-backend-metadata "emacs-agents-backend")
 (require 'map)
 (require 'seq)
 (require 'subr-x)
@@ -16,26 +20,38 @@
 (declare-function agent-shell-status "agent-shell")
 (declare-function agent-shell-interrupt "agent-shell")
 (declare-function acp-shutdown "acp")
+(declare-function agent-shell-get-model-name "agent-shell")
+(defun emacs-agents-agent-shell-metadata (transport)
+  "Return backend-reported display metadata for TRANSPORT."
+  (when (buffer-live-p (emacs-agents-transport-buffer transport))
+    (with-current-buffer (emacs-agents-transport-buffer transport)
+      (list :model (when (fboundp 'agent-shell-get-model-name)
+                     (agent-shell-get-model-name agent-shell--state))))))
 
-(cl-defstruct (emacs-agents-transport (:constructor emacs-agents--transport-create))
-  buffer callback conversation ready failed stopping)
+(defun emacs-agents--retain-conversation-header (&rest _)
+  "Retain the managed header after an agent-shell header update."
+  (when (bound-and-true-p emacs-agents-conversation-mode)
+    (setq header-line-format '(:eval emacs-agents--context))))
 
-(defun emacs-agents-backend-configs ()
+(with-eval-after-load 'agent-shell
+  (advice-add 'agent-shell--update-header-and-mode-line :after
+              #'emacs-agents--retain-conversation-header))
+
+(defun emacs-agents-agent-shell-configs ()
   "Resolve configured agent-shell profiles without launching agents."
-  (unless (require 'agent-shell nil t)
-    (user-error "Install agent-shell 0.75.2 or later to launch sessions"))
-  (mapcar (lambda (entry) (if (functionp entry) (funcall entry) entry))
+  (when (require 'agent-shell nil t)
+    (mapcar (lambda (entry) (if (functionp entry) (funcall entry) entry))
           (if (functionp agent-shell-agent-configs)
               (funcall agent-shell-agent-configs)
-            agent-shell-agent-configs)))
+            agent-shell-agent-configs))))
 
-(defun emacs-agents-backend-process (transport)
+(defun emacs-agents-agent-shell-process (transport)
   "Return TRANSPORT's ACP process through the compatibility boundary."
   (when (buffer-live-p (emacs-agents-transport-buffer transport))
     (with-current-buffer (emacs-agents-transport-buffer transport)
       (map-nested-elt agent-shell--state '(:client :process)))))
 
-(defun emacs-agents-backend-stop (transport)
+(defun emacs-agents-agent-shell-stop (transport)
   "Stop TRANSPORT while retaining its buffer for inspection."
   (setf (emacs-agents-transport-stopping transport) t)
   (when (buffer-live-p (emacs-agents-transport-buffer transport))
@@ -43,14 +59,6 @@
       (when-let* ((client (map-elt agent-shell--state :client)))
         (ignore-errors (agent-shell-interrupt t))
         (acp-shutdown :client client)))))
-
-(defun emacs-agents--transport-fail (transport message)
-  "Record MESSAGE and stop TRANSPORT without permitting replacement."
-  (unless (emacs-agents-transport-failed transport)
-    (setf (emacs-agents-transport-failed transport) t)
-    (funcall (emacs-agents-transport-callback transport) "failed" "unknown" nil message)
-    ;; Avoid tearing down the client inside its own request/response dispatch.
-    (run-at-time 0 nil #'emacs-agents-backend-stop transport)))
 
 (defun emacs-agents--guard-request (transport request)
   "Check REQUEST against TRANSPORT's fixed conversation identity."
@@ -68,7 +76,7 @@
         (error "%s" message))))
   request)
 
-(defun emacs-agents--transport-event (transport event)
+(defun emacs-agents--transport-lifecycle-event (transport event)
   "Translate agent-shell EVENT into a TRANSPORT observation."
   (when (and (not (emacs-agents-transport-failed transport))
              (not (emacs-agents-transport-stopping transport))
@@ -107,7 +115,21 @@
              conversation
              (when (eq kind 'error) (map-nested-elt event '(:data :message)))))))))))
 
-(defun emacs-agents-backend-start (profile directory conversation callback)
+(defun emacs-agents--transport-event (transport event)
+  "Translate EVENT into lifecycle and backend-neutral display observations."
+  (emacs-agents--transport-lifecycle-event transport event)
+  (when (and (emacs-agents-transport-ready transport)
+             (not (emacs-agents-transport-stopping transport))
+             (not (emacs-agents-transport-failed transport)))
+    (pcase (map-elt event :event)
+      ('agent-message-chunk
+       (when (map-nested-elt event '(:data :text-chunk))
+         (run-hook-with-args 'emacs-agents-backend-event-hook transport 'message nil)))
+      ((or 'init-finished 'init-model 'config-option-update 'input-submitted 'turn-complete)
+       (run-hook-with-args 'emacs-agents-backend-event-hook transport 'metadata
+                           (emacs-agents-backend-metadata transport))))))
+
+(defun emacs-agents-agent-shell-start (profile directory conversation callback)
   "Start PROFILE in DIRECTORY, restoring CONVERSATION when supplied.
 Report normalized observations to CALLBACK.  Return a transport object."
   (let* ((config (seq-find
