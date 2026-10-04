@@ -130,7 +130,7 @@
     (define-key map (kbd "C-c C-t") #'emacs-agents-transcript-return)
     map))
 
-(define-derived-mode emacs-agents-transcript-mode special-mode "Agent Transcript"
+(define-derived-mode emacs-agents-transcript-mode special-mode "Machina Transcript"
   "Read-only snapshot for searching, selecting and copying agent messages."
   (setq-local truncate-lines nil)
   ;; A static snapshot cannot confirm that newly arriving output was seen.

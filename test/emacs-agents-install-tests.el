@@ -20,18 +20,26 @@
 (ert-deftest emacs-agents-install-doom-example-is-optional ()
   ;; The example guards optional packages; this does not claim a full Doom boot.
   (load (expand-file-name "examples/doom.el" emacs-agents-test-root) nil t)
-  (should (fboundp 'emacs-agents))
+  (should (commandp 'mx-machina))
   (should-not (featurep 'doom)))
 
-(ert-deftest emacs-agents-install-mxm-reuses-existing-registry ()
+(ert-deftest emacs-agents-install-mx-machina-reuses-existing-registry ()
   (emacs-agents-test-with-store
     (let* ((id (emacs-agents-create "Existing agent" repo "test" "Work"))
            (directory emacs-agents-directory))
       (emacs-agents-store-close)
+      (require 'mx-machina)
       (require 'mxm)
-      (dolist (command '(mxm mxm-new mxm-board mxm-dashboard mxm-messaging-mode))
+      (dolist (command '(mx-machina mx-machina-new mx-machina-board
+                         mx-machina-dashboard mx-machina-messaging-mode
+                         mx-machina-messaging-ready mx-machina-next-attention
+                         mx-machina-focus mx-machina-diagnostics mx-machina-retry
+                         mxm mxm-new mxm-board mxm-dashboard mxm-messaging-mode))
         (should (commandp command)))
-      (call-interactively #'mxm)
+      (dolist (command '(mx-machina mxm emacs-agents))
+        (call-interactively command)
+        (should (equal (buffer-name) "*M-x Machina Sidebar*")))
+      (should (equal mode-name "Machina Sidebar"))
       (should (equal emacs-agents-directory directory))
       (should (equal (mapcar #'emacs-agents-session-id (emacs-agents-sessions)) (list id)))
       (should (equal (emacs-agents-session-name (emacs-agents-session id)) "Existing agent"))

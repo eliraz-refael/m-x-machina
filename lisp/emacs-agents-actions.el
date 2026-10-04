@@ -160,7 +160,7 @@ A non-nil REASON disables the action.  Do not launch or change anything."
     (define-key map (kbd "q") #'emacs-agents-actions-close)
     (define-key map (kbd "?") #'emacs-agents-actions-close)
     map))
-(define-derived-mode emacs-agents-actions-mode special-mode "Agent Actions"
+(define-derived-mode emacs-agents-actions-mode special-mode "Machina Actions"
   "Contextual actions; disabled entries explain their prerequisites."
   (setq-local truncate-lines nil header-line-format " Actions · letter or RET runs · g refresh · q closes")
   (visual-line-mode 1))
@@ -177,7 +177,7 @@ A non-nil REASON disables the action.  Do not launch or change anything."
                   (and (derived-mode-p 'emacs-agents-diagnostics-mode) emacs-agents-diagnostics--id)
                   emacs-agents--managed-id emacs-agents--shell-id))
           (folder (get-text-property (point) 'emacs-agents-folder))
-          (buffer (get-buffer-create "*Agent Actions*")))
+          (buffer (get-buffer-create "*M-x Machina Actions*")))
       (with-current-buffer buffer
         (emacs-agents-actions-mode)
         (setq emacs-agents-actions--id id emacs-agents-actions--folder folder

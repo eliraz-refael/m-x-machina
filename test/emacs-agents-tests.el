@@ -35,7 +35,7 @@
        (set-frame-parameter nil 'emacs-agents-focus-layout nil)
        (set-frame-parameter nil 'emacs-agents-conversation-layout nil)
        (dolist (buffer (buffer-list))
-         (when (or (member (buffer-name buffer) '("*Emacs Agents*" "*Agent Overview*" "*Archived Agents*"))
+         (when (or (member (buffer-name buffer) '("*M-x Machina*" "*M-x Machina Sidebar*" "*M-x Machina Archive*"))
                    (memq (buffer-local-value 'major-mode buffer) '(emacs-agents-diagnostics-mode emacs-agents-board-mode emacs-agents-actions-mode))
                    (buffer-local-value 'emacs-agents--managed-id buffer))
            (with-current-buffer buffer (set-buffer-modified-p nil))
@@ -209,7 +209,7 @@
   (emacs-agents-test-with-store
     (let ((id (emacs-agents-create "Test" repo "test")))
       (emacs-agents-dashboard)
-      (with-current-buffer "*Emacs Agents*"
+      (with-current-buffer "*M-x Machina*"
         (should buffer-read-only)
         (should (equal (caar tabulated-list-entries) id))
         (should (string-match-p "Test" (buffer-string))))
@@ -304,7 +304,7 @@
       (with-current-buffer first (insert "unsent draft"))
       (emacs-agents--show-conversation first)
       (let ((pane (selected-window))
-            (overview (get-buffer-window "*Agent Overview*")))
+            (overview (get-buffer-window "*M-x Machina Sidebar*")))
         (should-not (window-parameter pane 'window-side))
         (should (= (length (window-list)) 2))
         (emacs-agents--show-conversation second)
@@ -332,7 +332,7 @@
       (emacs-agents--show-conversation conversation)
       (emacs-agents--select-main-window)
       (split-window-right)
-      (select-window (get-buffer-window "*Agent Overview*"))
+      (select-window (get-buffer-window "*M-x Machina Sidebar*"))
       (let ((before (current-window-configuration))
             (selection (selected-window)))
         (cl-letf (((symbol-function 'emacs-agents-start) (lambda (_id) conversation)))
@@ -442,7 +442,7 @@
            (buffer (get-buffer-create "*Active agent test*")))
       (with-current-buffer buffer (setq-local emacs-agents--managed-id first))
       (emacs-agents--show-conversation buffer)
-      (with-current-buffer "*Agent Overview*"
+      (with-current-buffer "*M-x Machina Sidebar*"
         (should (equal emacs-agents--active-session first))
         (goto-char (point-min))
         (search-forward "First")
@@ -454,7 +454,7 @@
         (should (equal emacs-agents--active-session first)))
       (emacs-agents-close-view)
       (should-not emacs-agents--active-session)
-      (with-current-buffer "*Agent Overview*"
+      (with-current-buffer "*M-x Machina Sidebar*"
         (goto-char (point-min))
         (search-forward "First")
         (should-not (memq 'emacs-agents-active-session

@@ -111,7 +111,7 @@ Explicitly marking an agent read with `emacs-agents-mark-read' bypasses it."
 
 (defun emacs-agents--update-active-session (&rest _)
   "Refresh the active marker when the displayed conversation changes."
-  (when-let* ((buffer (get-buffer "*Agent Overview*")))
+  (when-let* ((buffer (get-buffer "*M-x Machina Sidebar*")))
     (unless (equal emacs-agents--active-session (emacs-agents--visible-conversation-id))
       (with-current-buffer buffer (emacs-agents--render-sidebar emacs-agents--ui-sessions)))))
 
@@ -308,7 +308,7 @@ Explicitly marking an agent read with `emacs-agents-mark-read' bypasses it."
                      (seq-filter (lambda (state) (gethash state counts))
                                  '("working" "ready" "waiting" "approval" "starting" "stopped" "unknown" "error"))
                      " · ")))))
-  (when-let* ((buffer (get-buffer "*Agent Overview*")))
+  (when-let* ((buffer (get-buffer "*M-x Machina Sidebar*")))
     (with-current-buffer buffer (emacs-agents--render-sidebar sessions)))
   (let ((unread (seq-count #'emacs-agents-unread-p sessions)))
     (when (> unread 0)
@@ -393,7 +393,7 @@ Explicitly marking an agent read with `emacs-agents-mark-read' bypasses it."
       (define-key map (kbd (car binding)) (cdr binding)))
     map))
 
-(define-derived-mode emacs-agents-sidebar-mode special-mode "Agent Overview"
+(define-derived-mode emacs-agents-sidebar-mode special-mode "Machina Sidebar"
   "Persistent session overview.  TAB expands; RET opens; z focuses; D lists all."
   (setq-local truncate-lines t
               line-spacing emacs-agents-sidebar-line-spacing
@@ -493,7 +493,7 @@ Explicitly marking an agent read with `emacs-agents-mark-read' bypasses it."
   (when (and emacs-agents-animate
              (seq-some (lambda (s) (equal (emacs-agents--activity s) "working")) emacs-agents--ui-sessions))
     (setq emacs-agents--spinner (1+ emacs-agents--spinner))
-    (when-let* ((buffer (get-buffer "*Agent Overview*"))
+    (when-let* ((buffer (get-buffer "*M-x Machina Sidebar*"))
                 ((get-buffer-window buffer 'visible)))
       (with-current-buffer buffer (emacs-agents--render-sidebar emacs-agents--ui-sessions)))
     (emacs-agents--refresh-headers t)
@@ -515,7 +515,7 @@ Explicitly marking an agent read with `emacs-agents-mark-read' bypasses it."
   (add-hook 'kill-emacs-hook #'emacs-agents-shutdown)
   (emacs-agents-status-mode 1)
   (emacs-agents--start-sidebar-observers)
-  (let ((buffer (get-buffer-create "*Agent Overview*")))
+  (let ((buffer (get-buffer-create "*M-x Machina Sidebar*")))
     (with-current-buffer buffer
       (unless (derived-mode-p 'emacs-agents-sidebar-mode)
         (emacs-agents-sidebar-mode)))
@@ -580,7 +580,7 @@ managed conversation; the sidebar and dashboard also bind z."
   (unless (emacs-agents--restore-layout)
     (let ((buffer (emacs-agents-start (or id (emacs-agents--read-id)))))
       ;; Ensure there is an overview to return to, even when invoked directly.
-      (unless (get-buffer-window "*Agent Overview*" (selected-frame))
+      (unless (get-buffer-window "*M-x Machina Sidebar*" (selected-frame))
         (save-selected-window (emacs-agents)))
       (set-frame-parameter nil 'emacs-agents-focus-layout (current-window-configuration))
       (condition-case err

@@ -154,7 +154,7 @@
         (should (= (length (window-list)) 1))
         (should (eq (current-buffer) buffer))
         (emacs-agents-focus)
-        (should (get-buffer-window "*Agent Overview*"))
+        (should (get-buffer-window "*M-x Machina Sidebar*"))
         (should (eq (current-buffer) buffer))
         (should-not (window-parameter nil 'window-side))
         (emacs-agents-close-view)
@@ -175,7 +175,7 @@
       (emacs-agents-test-wait
        (lambda () (equal (emacs-agents-session-activity (emacs-agents-session id)) "input")))
       (should (emacs-agents-unread-p (emacs-agents-session id)))
-      (with-current-buffer "*Agent Overview*"
+      (with-current-buffer "*M-x Machina Sidebar*"
         (should (string-match-p "NEW" (buffer-string))))
       (emacs-agents-open id)
       (with-current-buffer buffer

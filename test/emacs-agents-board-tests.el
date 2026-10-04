@@ -95,8 +95,8 @@
               (should (eq (current-buffer) conversation))
               (should (= windows (length (window-list))))
               (emacs-agents-close-view)
-              (should (get-buffer-window "*Agent Board*"))
-              (with-current-buffer "*Agent Board*"
+              (should (get-buffer-window "*M-x Machina Board*"))
+              (with-current-buffer "*M-x Machina Board*"
                 (should (equal id emacs-agents-board--selection)))
               (emacs-agents--select-main-window)
               (should (equal "Agent draft" (with-current-buffer conversation (buffer-string))))

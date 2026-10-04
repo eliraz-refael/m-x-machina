@@ -1,31 +1,24 @@
-;;; mxm.el --- M-x Machina: your coding-agent workspace -*- lexical-binding: t; -*-
+;;; mxm.el --- Compatibility entry points for M-x Machina -*- lexical-binding: t; -*-
 ;; SPDX-License-Identifier: GPL-3.0-or-later
-;; URL: https://github.com/eliraz-refael/m-x-machina
-;; Version: 0.1.0
-;; Package-Requires: ((emacs "29.1"))
-;; Keywords: tools, processes
 ;;; Commentary:
-;; Public entry points for M-x Machina.  The emacs-agents implementation,
-;; customization variables and registry paths remain compatible with existing
-;; configurations.  Both entry points manage the same agents and conversations.
+;; Use mx-machina for Emacs commands.  The external CLI remains mxm.
 ;;; Code:
-(require 'emacs-agents)
+(require 'mx-machina)
 
 ;;;###autoload
-(defalias 'mxm #'emacs-agents
-  "Open the M-x Machina agent sidebar.")
+(defalias 'mxm #'mx-machina)
+
 ;;;###autoload
-(defalias 'mxm-new #'emacs-agents-new
-  "Create a named M-x Machina agent, optionally in a new worktree.")
+(defalias 'mxm-new #'mx-machina-new)
+
 ;;;###autoload
-(defalias 'mxm-board #'emacs-agents-board
-  "Open the M-x Machina agent board.")
+(defalias 'mxm-board #'mx-machina-board)
+
 ;;;###autoload
-(defalias 'mxm-dashboard #'emacs-agents-dashboard
-  "Open the M-x Machina session table.")
+(defalias 'mxm-dashboard #'mx-machina-dashboard)
+
 ;;;###autoload
-(defalias 'mxm-messaging-mode #'emacs-agents-messaging-mode
-  "Toggle the local mxm CLI message service.")
+(defalias 'mxm-messaging-mode #'mx-machina-messaging-mode)
 
 (provide 'mxm)
 ;;; mxm.el ends here
