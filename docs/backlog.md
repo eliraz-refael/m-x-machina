@@ -140,19 +140,19 @@ Goal: make several concurrent agents manageable without inspecting each one.
 
 This work can proceed alongside recovery; it gates a stable release.
 
-- [ ] **REL-1 — Reproducible test entry point and CI.** Provide one documented
+- [x] **REL-1 — Reproducible test entry point and CI.** Provide one documented
   command for the complete suite and automated checks on the declared minimum
   Emacs version and a current version. Cover macOS/Linux where practical and
   explicitly report skipped optional terminal tests.
   **Done when:** a clean checkout can run registry, ACP, EAT, vterm and transcript
   checks without a commercial model or personal configuration; byte compilation
   treats package warnings as errors.
-  **Implemented locally 2026-10-04; hosted verification pending:** `scripts/check`
-  provides isolated compilation/core/full runs with explicit optional-suite skips,
-  pinned dependency downloads and a separate native vterm build. The full 125-test
-  suite passes on local Emacs 31.1, and core checks pass on 30.1 and 31.1.
-  A pinned-action CI matrix covers Linux 29.1/30.2/31.1 and macOS 31.1;
-  keep this gate unchecked until the hosted minimum-version jobs pass.
+  **Completed 2026-10-04:** `scripts/check` provides isolated compilation/core/full
+  runs with explicit optional-suite skips, pinned dependency downloads and a
+  separate native vterm build. [The hosted matrix passed](https://github.com/eliraz-refael/m-x-machina/actions/runs/37234024596):
+  88 core tests on Linux 29.1/30.2/31.1 and macOS 31.1, plus all 128 tests on Linux
+  29.1/31.1. All 17 Lisp files compile with warnings as errors. `main` requires the
+  complete matrix through the `Required checks` gate, including for maintainers.
 - [ ] **REL-2 — Installation and dependency compatibility.** Test a clean plain
   Emacs setup and Doom setup; document native vterm installation and supported
   dependency versions. Check newer agent-shell/Claude versions deliberately.
@@ -176,7 +176,8 @@ This work can proceed alongside recovery; it gates a stable release.
   is explicitly authorized. No publication is implied by this backlog.
   **Naming chosen 2026-10-04:** M-x Machina, repository slug `m-x-machina`,
   CLI and public Emacs entry point `mxm`. Legacy entry points and persistent
-  storage paths remain supported; version/release publication is still pending.
+  storage paths remain supported. The public source repository is published with
+  protected PR-only `main`; a tagged release remains pending.
 
 ## 5. Explicit agent collaboration
 

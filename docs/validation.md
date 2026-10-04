@@ -1,22 +1,25 @@
 # Prototype validation
 
-Validated locally on 2026-10-04 with Emacs 31.1 (SQLite enabled), the installed agent-shell, and the
-installed ACP and shell-maker dependencies. The supported minimum Emacs version
-is declared as 29.1; a minimum-version CI run is still needed before release.
+Validated on 2026-10-04 locally and on [GitHub Actions](https://github.com/eliraz-refael/m-x-machina/actions/runs/37234024596).
+The complete hosted matrix passes: core checks on Linux Emacs 29.1, 30.2 and 31.1,
+and macOS 31.1; full transport checks on Linux Emacs 29.1 and 31.1. Each core job
+passes 88 tests, and each full job passes 128 tests with pinned dependencies and
+a freshly built native vterm module. All 17 Lisp files compile with warnings
+as errors. The required CI gate accepts only successful results from every job.
 
-All 127 deterministic tests passed (78 registry/UI/archive/diagnostic/recovery/board/attention/action/install tests,
-14 ACP integration tests, 12 EAT integration tests, 4 vterm integration tests,
-2 transcript tests, and 17 messaging tests).
+The 128 deterministic tests cover 79 registry/UI/archive/diagnostic/recovery/board/
+attention/action/install cases, 14 ACP integration cases, 12 EAT cases, 4 vterm
+cases, 2 transcript cases and 17 messaging cases. The full suite also passes
+locally on Emacs 31.1. The transaction checks cover errors, quits, throws and
+commit failures; registry writes use an explicit rollback helper because the
+Emacs 29.1 built-in transaction macro commits on body errors.
+
 The release runner (`python3 scripts/check --suite all --fetch-deps --build-vterm`)
-now passes all 127 tests from a disposable checkout with fresh pinned dependencies
-and a separately compiled vterm module. Core compilation and all 87 core tests
-pass on Emacs 30.1; the full suite passes on 31.1. Installation smoke checks exercise
-plain Emacs and loading the optional Doom example without Doom installed.
-This is not a complete Doom boot test. The GitHub Actions matrix is configured
-for Linux 29.1/30.2/31.1 and macOS 31.1, including full Linux transport jobs, but
-has not run on a hosted runner yet. Minimum-version and Linux results remain
-unverified. No personal configuration, installed package or live Emacs session
-was changed during these checks. See [testing](testing.md) for reproduction.
+uses a disposable checkout and isolated Emacs state. An injected compiler warning
+was verified to fail the runner. Installation smoke checks exercise plain Emacs
+and loading the optional Doom example without Doom installed; this is not a full
+Doom boot test or real-provider restart pilot. No personal configuration, installed
+package or live Emacs session was changed. See [testing](testing.md) for reproduction.
 
 The suite exercises:
 
