@@ -20,19 +20,34 @@
   id name profile directory branch conversation run status activity error
   folder unread model project archived)
 
+(defmacro emacs-agents--with-transaction (db &rest body)
+  "Run BODY in DB, rolling back unless its changes commit successfully.
+Emacs 29.1's built-in transaction macro commits even when BODY signals."
+  (declare (indent 1) (debug (form body)))
+  (let ((connection (make-symbol "connection"))
+        (committed (make-symbol "committed")))
+    `(let ((,connection ,db) ,committed)
+       (sqlite-transaction ,connection)
+       (unwind-protect
+           (prog1 (progn ,@body)
+             (unless (sqlite-commit ,connection)
+               (error "Could not commit agent registry transaction"))
+             (setq ,committed t))
+         (unless ,committed (sqlite-rollback ,connection))))))
+
 (defun emacs-agents-store-migrate ()
   "Upgrade the open registry transactionally, without resetting live sessions."
   (let ((version (caar (sqlite-select emacs-agents--db "PRAGMA user_version"))))
     (unless (memq version '(1 2 3)) (error "Unsupported registry schema %s" version))
     (when (= version 1)
-      (with-sqlite-transaction emacs-agents--db
+      (emacs-agents--with-transaction emacs-agents--db
         (dolist (column '("folder TEXT NOT NULL DEFAULT ''" "unread INTEGER NOT NULL DEFAULT 0"
                           "model TEXT" "project TEXT"))
           (sqlite-execute emacs-agents--db (concat "ALTER TABLE sessions ADD COLUMN " column)))
         (sqlite-execute emacs-agents--db "CREATE TABLE folders (path TEXT PRIMARY KEY)")
         (sqlite-execute emacs-agents--db "PRAGMA user_version=2")))
     (when (< version 3)
-      (with-sqlite-transaction emacs-agents--db
+      (emacs-agents--with-transaction emacs-agents--db
         (sqlite-execute emacs-agents--db "ALTER TABLE sessions ADD COLUMN archived INTEGER NOT NULL DEFAULT 0")
         (sqlite-execute emacs-agents--db "PRAGMA user_version=3")))))
 
@@ -81,7 +96,7 @@
               (unless (memq version '(0 1 2 3))
                 (error "Unsupported registry schema %s" version))
               (when (= version 0)
-                (with-sqlite-transaction emacs-agents--db
+                (emacs-agents--with-transaction emacs-agents--db
                   (sqlite-execute emacs-agents--db
                    "CREATE TABLE sessions (id TEXT PRIMARY KEY, name TEXT NOT NULL,
                     profile TEXT NOT NULL, directory TEXT NOT NULL, branch TEXT NOT NULL,
@@ -94,7 +109,7 @@
                     ended TEXT, outcome TEXT)")
                   (sqlite-execute emacs-agents--db "PRAGMA user_version=1"))))
             (emacs-agents-store-migrate)
-            (with-sqlite-transaction emacs-agents--db
+            (emacs-agents--with-transaction emacs-agents--db
               (sqlite-execute emacs-agents--db
                "UPDATE runs SET ended=CURRENT_TIMESTAMP, outcome='disconnected' WHERE ended IS NULL")
               (sqlite-execute emacs-agents--db
@@ -154,7 +169,7 @@ SCOPE may be `archived' for archived records or `all' for both."
   "Persist logical folder PATH and any missing ancestors, returning its path."
   (setq path (emacs-agents-folder-path path))
   (emacs-agents-store-open)
-  (with-sqlite-transaction emacs-agents--db
+  (emacs-agents--with-transaction emacs-agents--db
     (let ((prefix ""))
       (dolist (part (split-string path "/" t))
         (setq prefix (if (string-empty-p prefix) part (concat prefix "/" part)))
@@ -176,7 +191,7 @@ SCOPE may be `archived' for archived records or `all' for both."
   "Allocate and persist a new run for session ID."
   (let ((session (emacs-agents-session id)) (run (emacs-agents--id)))
     (when (emacs-agents-archived-p session) (user-error "Restore this archived agent before starting it"))
-    (with-sqlite-transaction emacs-agents--db
+    (emacs-agents--with-transaction emacs-agents--db
       (emacs-agents--exec
        "INSERT INTO runs(id,session,conversation) VALUES(?,?,?)"
        run id (emacs-agents-session-conversation session))
@@ -194,7 +209,7 @@ STATUS, ACTIVITY and MESSAGE describe process, activity and diagnostic state."
       (when (and conversation (emacs-agents-session-conversation session)
                  (not (equal conversation (emacs-agents-session-conversation session))))
         (error "Backend conversation identity changed"))
-      (with-sqlite-transaction emacs-agents--db
+      (emacs-agents--with-transaction emacs-agents--db
         (emacs-agents--exec
          "UPDATE sessions SET status=?,activity=?,conversation=COALESCE(conversation,?),error=? WHERE id=?"
          status activity conversation message id)

@@ -252,7 +252,7 @@ Refuse a running agent unless STOP-RUNNING explicitly authorizes stopping it."
      (list id running)))
   (emacs-agents-session id)
   (emacs-agents--retire-for-removal id stop-running)
-  (with-sqlite-transaction emacs-agents--db
+  (emacs-agents--with-transaction emacs-agents--db
     (emacs-agents--exec "DELETE FROM runs WHERE session=?" id)
     (emacs-agents--exec "DELETE FROM sessions WHERE id=?" id))
   ;; Keep readable buffers and shell drafts, but remove links to the deleted ID.
