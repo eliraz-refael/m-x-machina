@@ -368,6 +368,7 @@ Explicitly marking an agent read with `emacs-agents-mark-read' bypasses it."
                        ("d" . emacs-agents-delete)
                        ("g" . emacs-agents-refresh) ("f" . emacs-agents-files)
                        ("m" . emacs-agents-magit) ("i" . emacs-agents-details)
+                       ("W" . emacs-agents-rebind-worktree)
                        ("e" . emacs-agents-eshell)
                        ("TAB" . emacs-agents-sidebar-expand) ("z" . emacs-agents-focus)
                        ("j" . emacs-agents-sidebar-next) ("k" . emacs-agents-sidebar-previous)

@@ -314,6 +314,7 @@ in slot 0, such as Treemacs. Narrow frames may need smaller pane sizes.
 | `RET` / `r` | Open, start, or resume the selected session |
 | `x` | Stop its process and retain the session |
 | `i` | Diagnose the selected agent without starting it |
+| `W` | Review and change a stopped agent's worktree/branch association |
 | `TAB` | Expand/collapse sidebar details |
 | `D` | Open the expanded dashboard (sidebar) |
 | `s` | Return to the sidebar (dashboard) |
@@ -355,6 +356,25 @@ The copied summary includes local paths, agent metadata and full IDs, but exclud
 command arguments, environment values, conversation contents and raw failure text.
 The latest raw failure appears separately in the local view and is omitted by
 `w`; copying the entire buffer manually also copies that failure detail.
+
+Press `W` in the sidebar, dashboard or diagnostics, or run
+`M-x emacs-agents-rebind-worktree`, to recover a stopped agent's checkout
+association. Choose the relocated worktree, or keep the current directory to
+accept its actual branch. Review the recorded and proposed path/branch, then
+confirm. Cancelling leaves the registry untouched. The command checks again
+after confirmation and refuses if the record or checkout changed meanwhile.
+Stop running agents with `x` first and wait for their process to exit.
+
+Recovery saves the path, branch and project while retaining the agent's profile,
+conversation ID, folder, unread flag and run history. It does not move files,
+create worktrees, switch branches or start an agent. Existing eshell buffers keep
+their jobs and drafts; after a path change, `e` opens a new associated shell in
+the chosen checkout. Open the agent explicitly when ready to resume.
+
+Backend history can depend on the old working directory. A valid new association
+does not guarantee the provider can load that conversation there. Resume still
+requests the original ID; a refusal never silently creates another conversation.
+Backend history relocation and profile/account recovery remain separate work.
 
 The implementation stops managed ACP transports when the Emacs process exits
 normally. Closing a client frame while an Emacs daemon stays alive does not stop

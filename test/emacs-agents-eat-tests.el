@@ -1,6 +1,8 @@
 ;;; emacs-agents-eat-tests.el --- Real terminal adapter tests -*- lexical-binding: t; -*-
 ;; SPDX-License-Identifier: GPL-3.0-or-later
 (require 'eat)
+(require 'emacs-agents-recovery)
+
 (unless (boundp 'emacs-agents-test-root)
   (load (expand-file-name "emacs-agents-tests.el" (file-name-directory (or load-file-name buffer-file-name))) nil t))
 
@@ -314,4 +316,30 @@
             (should-not (file-exists-p directory)))
         (when (buffer-live-p buffer) (kill-buffer buffer))))))
 
+(ert-deftest emacs-agents-eat-recovery-resumes-original-account-and-id ()
+  (emacs-agents-test-with-eat
+    (let* ((id (emacs-agents-create "Relocated terminal" repo "test-eat"))
+           (new (expand-file-name "relocated" temporary)))
+      (emacs-agents-start id)
+      (emacs-agents-eat-test-wait
+       (lambda () (equal (emacs-agents-session-status (emacs-agents-session id)) "live")))
+      (let ((sid (emacs-agents-session-conversation (emacs-agents-session id))))
+        (emacs-agents-stop id)
+        (rename-file repo new)
+        (cl-letf (((symbol-function 'yes-or-no-p) (lambda (&rest _) t)))
+          (emacs-agents-rebind-worktree id new))
+        (emacs-agents-start id)
+        (emacs-agents-eat-test-wait
+         (lambda () (equal (emacs-agents-session-status (emacs-agents-session id)) "live")))
+        (should (equal sid (emacs-agents-session-conversation (emacs-agents-session id))))
+        (with-temp-buffer
+          (insert-file-contents (expand-file-name "claude/launches.jsonl" temporary))
+          (let* ((rows (mapcar (lambda (line) (json-parse-string line :object-type 'alist))
+                               (split-string (buffer-string) "\n" t)))
+                 (resume (nth 1 rows)))
+            (should (= 2 (length rows)))
+            (should (equal (alist-get 'resume resume) sid))
+            (should (eq (alist-get 'new resume) :null))
+            (should (equal (alist-get 'account resume) "fixture-account"))
+            (should (file-equal-p (alist-get 'cwd resume) new))))))))
 ;;; emacs-agents-eat-tests.el ends here

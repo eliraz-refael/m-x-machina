@@ -118,7 +118,7 @@ Each row is (LABEL SEVERITY DETAIL).  Do not launch or poll anything."
         (row "Recorded branch" 'info (emacs-agents-session-branch session))
         (cond
          ((file-remote-p directory) (row "Worktree" 'blocked "Remote worktrees are unsupported"))
-         ((not (file-directory-p directory)) (row "Worktree" 'blocked "Directory missing; restore its recorded location before resuming"))
+         ((not (file-directory-p directory)) (row "Worktree" 'blocked "Directory missing; W associates a relocated checkout, or restore its recorded location"))
          ((not (executable-find "git")) (row "Git" 'blocked "Git is missing; actual worktree and branch could not be checked"))
          (t
           (condition-case nil
@@ -126,7 +126,7 @@ Each row is (LABEL SEVERITY DETAIL).  Do not launch or poll anything."
                 (row "Actual worktree" (if (equal actual directory) 'ok 'blocked) actual)
                 (row "Actual branch" (if (equal branch (emacs-agents-session-branch session)) 'ok 'blocked) branch)
                 (unless (equal (list actual branch) (list directory (emacs-agents-session-branch session)))
-                  (row "Worktree mismatch" 'blocked "Recorded and actual checkout differ; restore the recorded checkout before resuming")))
+                  (row "Worktree mismatch" 'blocked "Recorded and actual checkout differ; W reviews the association, or restore the recorded checkout")))
             (error (row "Worktree" 'blocked "Directory exists, but Git could not inspect a valid checkout")))))
         (row "Saved process state" 'info (emacs-agents-session-status session))
         (row "Run" 'info (or (emacs-agents-session-run session) "Not launched"))
@@ -227,11 +227,12 @@ Each row is (LABEL SEVERITY DETAIL).  Do not launch or poll anything."
     (set-keymap-parent map special-mode-map)
     (define-key map (kbd "g") #'emacs-agents-diagnostics-refresh)
     (define-key map (kbd "w") #'emacs-agents-diagnostics-copy)
+    (define-key map (kbd "W") #'emacs-agents-rebind-worktree)
     (define-key map (kbd "q") #'emacs-agents-diagnostics-return)
     map))
 (define-derived-mode emacs-agents-diagnostics-mode special-mode "Agent Diagnostics"
   "A read-only local snapshot of agent readiness and runtime health."
-  (setq-local truncate-lines nil header-line-format " Diagnostics · g refresh · w copy summary · q return")
+  (setq-local truncate-lines nil header-line-format " Diagnostics · g refresh · w copy · W worktree · q return")
   (visual-line-mode 1))
 
 ;;;###autoload

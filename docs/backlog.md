@@ -33,12 +33,16 @@ an explicit recovery action without losing its saved identity.
   summary, and `q` returns. Raw error detail stays outside the copied summary.
   Git inspection runs read-only commands; no agent is launched. See
   [validation](validation.md) for read-only, failure-path and Evil checks.
-- [ ] **REC-2 — Worktree and branch recovery.** Offer an explicit way to associate
+- [x] **REC-2 — Worktree and branch recovery.** Offer an explicit way to associate
   a stopped agent with a relocated worktree or accept its current branch. Show
   the old/new association and validate the chosen Git checkout before saving.
   **Done when:** cancellation changes nothing, live agents must be stopped first,
   and conversation/account identity is retained; no automatic checkout/reset or
   worktree recreation occurs. Depends on REC-1.
+  **Completed 2026-10-01:** `W` chooses a checkout and confirms recorded/proposed
+  path and branch. Confirmation is revalidated before saving. Existing shell
+  drafts survive relocation; backend resume retains the original identity even
+  when history cannot be loaded from the new directory.
 - [ ] **REC-3 — Profile and resume recovery.** Explain unavailable profiles,
   authentication failures, unsupported resume and missing backend history.
   Support correcting an equivalent profile only where its account and backend
@@ -54,8 +58,8 @@ an explicit recovery action without losing its saved identity.
   replay, correct unread behavior and useful failure messages. Record CLI/package
   versions and any interface-specific limits. Depends on REC-1 through REC-3.
 
-**Next implementation slice:** REC-2, worktree and branch recovery. REC-1 is
-complete; REC-3 and the REC-4 pilot follow recovery.
+**Next implementation slice:** REC-3, profile and resume recovery. REC-1 and
+REC-2 are complete; the REC-4 restart pilot follows REC-3.
 
 ## 2. Attention and navigation
 

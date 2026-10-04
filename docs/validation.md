@@ -4,9 +4,24 @@ Validated locally on 2026-10-01 with Emacs 31.1 (SQLite enabled), the installed 
 installed ACP and shell-maker dependencies. The supported minimum Emacs version
 is declared as 29.1; a minimum-version CI run is still needed before release.
 
-All 72 deterministic tests passed (47 registry/UI/archive/diagnostic tests, 9 ACP integration
-tests, 10 EAT integration tests, 4 vterm integration tests, and 2 transcript tests).
+All 81 deterministic tests passed (54 registry/UI/archive/diagnostic/recovery tests,
+10 ACP integration tests, 11 EAT integration tests, 4 vterm integration tests,
+and 2 transcript tests).
 The suite exercises:
+
+- Worktree reassociation and branch acceptance preserve agent/account identity,
+  unread/model/folder metadata, prior failures, run history and dirty Git files.
+  A real linked worktree moved with Git can be reassociated without recreating it.
+- Recovery cancellation, including a cold registry with saved live observations,
+  changes no records. Invalid targets, confirmation-time checkout/record changes,
+  starting/running agents and lingering backend processes are rejected. A write
+  failure rolls back; unchanged associations do not prompt or write.
+- Old eshell jobs and drafts retain their directory; a relocated agent gets a new
+  associated shell. Diagnostic recovery refreshes the displayed association.
+- EAT resumes from a relocated checkout with the original conversation ID/account.
+  A path-bound ACP fixture rejects relocated history; the guarded transport sends
+  no replacement session/new request. This does not establish real provider
+  history portability.
 
 - Diagnostic explanations for missing profiles/executables/dependencies,
   configuration errors, missing worktrees, branch mismatches, process exit,
@@ -113,6 +128,10 @@ loaded into the user's running Emacs and checked against all three saved records
 it distinguished an unavailable demo profile, a configured stopped ACP agent
 whose executable was not declared, and a configured stopped EAT agent with its
 executable available. No agents were running or launched during that check.
+
+REC-2 reran all 81 tests and byte compilation with warnings as errors. The new
+`W` recovery flow also passed with Evil enabled. Full real-provider restart and
+relocated-history pilots remain outstanding.
 
 The user successfully stopped and resumed a real Claude EAT conversation, with
 the saved ID and on-disk transcript confirmed. A full Emacs restart with the live

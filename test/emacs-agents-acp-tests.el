@@ -2,6 +2,8 @@
 ;; SPDX-License-Identifier: GPL-3.0-or-later
 (require 'agent-shell)
 (require 'agent-shell-mock-agent)
+(require 'emacs-agents-recovery)
+
 (unless (boundp 'emacs-agents-test-root)
   (load (expand-file-name "emacs-agents-tests.el" (file-name-directory (or load-file-name buffer-file-name))) nil t))
 
@@ -202,3 +204,31 @@
         (emacs-agents-test-wait
          (lambda () (equal (emacs-agents-session-activity (emacs-agents-session id)) "input")))
         (should (equal conversation (emacs-agents-session-conversation (emacs-agents-session id))))))))
+
+(ert-deftest emacs-agents-acp-recovery-rejected-history-never-replaces-session ()
+  (emacs-agents-test-with-acp
+    (let* ((id (emacs-agents-create "Relocated ACP" repo "mock-agent"))
+           (new (expand-file-name "relocated" temporary)))
+      (emacs-agents-start id)
+      (emacs-agents-test-wait
+       (lambda () (equal (emacs-agents-session-status (emacs-agents-session id)) "live")))
+      (let* ((sid (emacs-agents-session-conversation (emacs-agents-session id)))
+             (process (emacs-agents-backend-process (cdr (gethash id emacs-agents--running)))))
+        (emacs-agents-stop id)
+        (emacs-agents-test-wait (lambda () (not (process-live-p process))))
+        (rename-file repo new)
+        (cl-letf (((symbol-function 'yes-or-no-p) (lambda (&rest _) t)))
+          (emacs-agents-rebind-worktree id new))
+        (emacs-agents-start id)
+        (emacs-agents-test-wait
+         (lambda () (equal (emacs-agents-session-status (emacs-agents-session id)) "failed")))
+        (should (equal sid (emacs-agents-session-conversation (emacs-agents-session id))))
+        (with-temp-buffer
+          (insert-file-contents (expand-file-name "backend/requests.jsonl" temporary))
+          (let* ((rows (mapcar (lambda (line) (json-parse-string line :object-type 'alist))
+                               (split-string (buffer-string) "\n" t)))
+                 (loads (seq-filter (lambda (row) (equal (alist-get 'method row) "session/load")) rows)))
+            (should (= 1 (seq-count (lambda (row) (equal (alist-get 'method row) "session/new")) rows)))
+            (should (= 1 (length loads)))
+            (should (equal sid (map-nested-elt (car loads) '(params sessionId))))
+            (should (file-equal-p new (map-nested-elt (car loads) '(params cwd))))))))))

@@ -13,6 +13,7 @@
     (evil-define-key 'normal emacs-agents-diagnostics-mode-map
       (kbd "q") #'emacs-agents-diagnostics-return
       (kbd "g") #'emacs-agents-diagnostics-refresh
+      (kbd "W") #'emacs-agents-rebind-worktree
       (kbd "w") #'emacs-agents-diagnostics-copy))
   (evil-set-initial-state 'emacs-agents-transcript-mode 'normal)
   (with-eval-after-load 'emacs-agents-transcript
@@ -37,6 +38,7 @@
                      ("d" . emacs-agents-delete)
                      ("g" . emacs-agents-refresh) ("f" . emacs-agents-files)
                      ("m" . emacs-agents-magit) ("i" . emacs-agents-details)
+                     ("W" . emacs-agents-rebind-worktree)
                      ("e" . emacs-agents-eshell)
                      ("TAB" . emacs-agents-sidebar-expand) ("z" . emacs-agents-focus)
                      ("D" . emacs-agents-dashboard) ("c" . emacs-agents-close-view)
@@ -50,6 +52,7 @@
                      ("d" . emacs-agents-delete)
                      ("g" . emacs-agents-refresh) ("f" . emacs-agents-files)
                      ("m" . emacs-agents-magit) ("i" . emacs-agents-details)
+                     ("W" . emacs-agents-rebind-worktree)
                      ("e" . emacs-agents-eshell)
                      ("z" . emacs-agents-focus) ("s" . emacs-agents)
                      ("q" . quit-window)))

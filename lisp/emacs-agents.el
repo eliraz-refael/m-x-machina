@@ -320,7 +320,7 @@ Never replay input or create a replacement for a saved conversation."
                          (user-error "Restore this archived agent before starting it"))
                        (emacs-agents--worktree directory))))
         (unless (equal actual (list directory (emacs-agents-session-branch session)))
-          (user-error "Worktree or branch changed; restore its recorded location and branch first"))
+          (user-error "Worktree or branch changed; use W to review its association, or restore the recorded checkout"))
         (when (and (emacs-agents-session-run session) (not conversation))
           (user-error "Previous launch captured no conversation ID; inspect its buffer, or create a new session explicitly"))
         ;; Validate the profile before allocating a run.
@@ -435,6 +435,7 @@ Never replay input or create a replacement for a saved conversation."
   (magit-status (emacs-agents-session-directory (emacs-agents-session id))))
 
 (autoload 'emacs-agents-diagnostics "emacs-agents-diagnostics" nil t)
+(autoload 'emacs-agents-rebind-worktree "emacs-agents-recovery" nil t)
 
 (defun emacs-agents-details (&optional id)
   "Display local diagnostics for ID, or choose an agent interactively."
@@ -478,6 +479,7 @@ Never replay input or create a replacement for a saved conversation."
     (define-key map (kbd "f") #'emacs-agents-files)
     (define-key map (kbd "m") #'emacs-agents-magit)
     (define-key map (kbd "i") #'emacs-agents-details)
+    (define-key map (kbd "W") #'emacs-agents-rebind-worktree)
     (define-key map (kbd "e") #'emacs-agents-eshell)
     (define-key map (kbd "z") #'emacs-agents-focus)
     (define-key map (kbd "s") #'emacs-agents)
