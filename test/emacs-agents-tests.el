@@ -432,7 +432,7 @@
         (emacs-agents-sidebar-next)
         (emacs-agents-sidebar-expand)
         (should (string-match-p (regexp-quote "[APPROVAL]") (buffer-string)))
-        (should (string-match-p (regexp-quote (file-truename other)) (buffer-string)))
+        (should (string-match-p (regexp-quote (abbreviate-file-name (file-truename other))) (buffer-string)))
         (should truncate-lines)))))
 
 (ert-deftest emacs-agents-sidebar-active-marker-follows-view-not-navigation ()
@@ -744,3 +744,33 @@
       (should (equal (buffer-local-value 'emacs-agents--identity buffer) "unchanged"))
       (kill-buffer buffer)
       (should-not (memq buffer emacs-agents--conversation-buffers)))))
+
+(ert-deftest emacs-agents-transaction-rolls-back-nonlocal-exits-and-failed-commit ()
+  (emacs-agents-test-with-store
+    (emacs-agents-store-open)
+    (emacs-agents--exec "CREATE TABLE transaction_probe (value TEXT)")
+    (dolist (exit '(error quit throw commit-error commit-nil))
+      (let ((commit (symbol-function 'sqlite-commit)))
+        (cl-letf (((symbol-function 'sqlite-commit)
+                   (lambda (db)
+                     (pcase exit
+                       ('commit-error (error "Fixture commit failure"))
+                       ('commit-nil nil)
+                       (_ (funcall commit db))))))
+          (condition-case nil
+              (catch 'abort
+                (emacs-agents--with-transaction emacs-agents--db
+                  (emacs-agents--exec "INSERT INTO transaction_probe VALUES ('rollback')")
+                  (pcase exit
+                    ('error (error "Fixture body failure"))
+                    ('quit (signal 'quit nil))
+                    ('throw (throw 'abort nil)))))
+            ((error quit) nil))))
+      (should-not (emacs-agents--query "SELECT * FROM transaction_probe")))
+    (let ((evaluations 0))
+      (should-not
+       (emacs-agents--with-transaction (progn (cl-incf evaluations) emacs-agents--db)
+         (emacs-agents--exec "INSERT INTO transaction_probe VALUES ('committed')")
+         nil))
+      (should (= evaluations 1)))
+    (should (equal '(("committed")) (emacs-agents--query "SELECT * FROM transaction_probe")))))

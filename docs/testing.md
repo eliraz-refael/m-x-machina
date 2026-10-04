@@ -69,8 +69,9 @@ permissions. It runs:
 [setup-emacs](https://github.com/purcell/setup-emacs) supplies the CI Emacs binary.
 The `Required checks` gate succeeds only when all core and transport jobs
 succeed; failed, cancelled or skipped jobs block it.
-These jobs are configured, not evidence of a passing hosted run until the project
-is pushed and the workflow actually runs. Local results live in `validation.md`.
+The complete hosted matrix [passed on 2026-10-04](https://github.com/eliraz-refael/m-x-machina/actions/runs/37234024596):
+88 core tests per core job and 128 tests per full transport job, with all 17 Lisp
+files compiled using warnings as errors. Results and limits live in `validation.md`.
 
 The optional Doom example is smoke-tested in plain Emacs without Doom installed.
 This verifies that optional integrations stay optional; it does **not** establish

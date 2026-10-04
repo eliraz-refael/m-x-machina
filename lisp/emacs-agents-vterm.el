@@ -3,6 +3,7 @@
 ;;; Commentary:
 ;; Vterm owns rendering; the shared Claude bridge owns identity and status.
 ;;; Code:
+(require 'mwheel)
 (require 'emacs-agents-claude)
 (defvar emacs-agents-eat-profiles)
 (declare-function emacs-agents-eat-configs "emacs-agents-eat")

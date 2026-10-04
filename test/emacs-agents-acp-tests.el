@@ -14,6 +14,18 @@
       (accept-process-output nil 0.05))
     (should (funcall predicate))))
 
+(defun emacs-agents-test-wait-rejected-resume (id)
+  "Wait for ID's failed resume without debugging its expected guard error."
+  ;; Emacs 29 debugs timer errors before its timer handler catches them.  Only
+  ;; the two expected replacement guards are excluded; all other errors remain
+  ;; visible to ERT, and callers still assert identity and actual wire requests.
+  (let ((debug-ignored-errors
+         (append '("^Resume failed: backend attempted a replacement;"
+                   "^Unsupported resume: backend offers neither saved-session")
+                 debug-ignored-errors)))
+    (emacs-agents-test-wait
+     (lambda () (equal (emacs-agents-session-status (emacs-agents-session id)) "failed")))))
+
 (defmacro emacs-agents-test-with-acp (&rest body)
   "Run BODY with a real agent-shell connected to the local fixture."
   (declare (indent 0) (debug t))
@@ -59,8 +71,7 @@
       (emacs-agents--observe id run "stopped" "unknown" "saved-conversation")
       (cl-letf (((symbol-function 'yes-or-no-p) (lambda (&rest _) t)))
         (emacs-agents-retry id))
-      (emacs-agents-test-wait
-       (lambda () (equal (emacs-agents-session-status (emacs-agents-session id)) "failed")))
+      (emacs-agents-test-wait-rejected-resume id)
       (should (equal (emacs-agents-session-conversation (emacs-agents-session id)) "saved-conversation"))
       (should (eq (emacs-agents-diagnostics--failure-kind (emacs-agents-session-error (emacs-agents-session id))) 'unsupported))
       (with-temp-buffer
@@ -74,8 +85,7 @@
       (emacs-agents--observe id run "stopped" "unknown" "missing-conversation")
       (cl-letf (((symbol-function 'yes-or-no-p) (lambda (&rest _) t)))
         (emacs-agents-retry id))
-      (emacs-agents-test-wait
-       (lambda () (equal (emacs-agents-session-status (emacs-agents-session id)) "failed")))
+      (emacs-agents-test-wait-rejected-resume id)
       (should (equal (emacs-agents-session-conversation (emacs-agents-session id)) "missing-conversation"))
       (should (eq (emacs-agents-diagnostics--failure-kind (emacs-agents-session-error (emacs-agents-session id))) 'resume))
       (with-temp-buffer
@@ -224,8 +234,7 @@
         (cl-letf (((symbol-function 'yes-or-no-p) (lambda (&rest _) t)))
           (emacs-agents-rebind-worktree id new))
         (emacs-agents-start id)
-        (emacs-agents-test-wait
-         (lambda () (equal (emacs-agents-session-status (emacs-agents-session id)) "failed")))
+        (emacs-agents-test-wait-rejected-resume id)
         (should (equal sid (emacs-agents-session-conversation (emacs-agents-session id))))
         (with-temp-buffer
           (insert-file-contents (expand-file-name "backend/requests.jsonl" temporary))
@@ -246,8 +255,7 @@
       (emacs-agents--observe id run "stopped" "unknown" "saved-id")
       (cl-letf (((symbol-function 'yes-or-no-p) (lambda (&rest _) t)))
         (emacs-agents-retry id))
-      (emacs-agents-test-wait
-       (lambda () (equal (emacs-agents-session-status (emacs-agents-session id)) "failed")))
+      (emacs-agents-test-wait-rejected-resume id)
       (should (equal (emacs-agents-session-conversation (emacs-agents-session id)) "saved-id"))
       (should (eq (emacs-agents-diagnostics--failure-kind (emacs-agents-session-error (emacs-agents-session id))) 'authentication))
       (with-temp-buffer
@@ -295,7 +303,7 @@
            (run (emacs-agents--begin-run id)))
       (emacs-agents--observe id run "stopped" "unknown" "missing-conversation")
       (emacs-agents-start id)
-      (emacs-agents-test-wait (lambda () (equal (emacs-agents-session-status (emacs-agents-session id)) "failed")))
+      (emacs-agents-test-wait-rejected-resume id)
       (should (equal (emacs-agents-session-conversation (emacs-agents-session id)) "missing-conversation"))
       (with-temp-buffer
         (insert-file-contents (expand-file-name "backend/requests.jsonl" temporary))

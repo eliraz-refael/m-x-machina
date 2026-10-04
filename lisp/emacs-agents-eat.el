@@ -4,6 +4,7 @@
 ;; EAT owns the terminal.  Claude hooks report identity and activity through a
 ;; private per-run event file; terminal redraws never count as assistant output.
 ;;; Code:
+(require 'mwheel)
 (require 'emacs-agents-transport)
 (require 'emacs-agents-claude)
 (require 'json)

@@ -49,7 +49,7 @@
     ;; Acquire registry ownership only after confirmation.  Cancelling even a
     ;; cold-registry invocation must not reconcile runs or alter observations.
     (emacs-agents-store-open)
-    (with-sqlite-transaction emacs-agents--db
+    (emacs-agents--with-transaction emacs-agents--db
       (unless (equal session (emacs-agents-session id))
         (user-error "The agent record changed; inspect it and try again"))
       (emacs-agents-recovery--require-stopped session)
