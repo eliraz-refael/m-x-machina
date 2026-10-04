@@ -276,7 +276,7 @@ Each row is (LABEL SEVERITY DETAIL).  Do not launch or poll anything."
     (define-key map (kbd "q") #'emacs-agents-diagnostics-return)
     (define-key map (kbd "?") #'emacs-agents-actions)
     map))
-(define-derived-mode emacs-agents-diagnostics-mode special-mode "Agent Diagnostics"
+(define-derived-mode emacs-agents-diagnostics-mode special-mode "Machina Diagnostics"
   "A read-only local snapshot of agent readiness and runtime health."
   (setq-local truncate-lines nil header-line-format " Diagnostics · g refresh · w copy · W worktree · R retry · q return")
   (visual-line-mode 1))

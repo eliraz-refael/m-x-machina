@@ -159,7 +159,7 @@
 
 (defun emacs-agents-board--refresh ()
   "Refresh a visible board after the shared session cache changes."
-  (when-let* ((buffer (get-buffer "*Agent Board*")) (window (get-buffer-window buffer)))
+  (when-let* ((buffer (get-buffer "*M-x Machina Board*")) (window (get-buffer-window buffer)))
     (with-current-buffer buffer (emacs-agents-board--render (window-body-width window)))))
 
 (defun emacs-agents-board--move (direction)
@@ -246,7 +246,7 @@
       (define-key map (kbd (car binding)) (cdr binding)))
     map))
 
-(define-derived-mode emacs-agents-board-mode special-mode "Agent Board"
+(define-derived-mode emacs-agents-board-mode special-mode "Machina Board"
   "Cards grouped by folder and observed activity. No manual status changes."
   (setq-local truncate-lines t line-spacing 0.12
               header-line-format " Board · ? actions · [ ] attention · RET open · f folder · q return")
@@ -262,7 +262,7 @@
   (emacs-agents--select-main-window)
   (let ((layout (current-window-configuration))
         (conversation-layout (frame-parameter nil 'emacs-agents-conversation-layout))
-        (buffer (get-buffer-create "*Agent Board*")))
+        (buffer (get-buffer-create "*M-x Machina Board*")))
     (switch-to-buffer buffer)
     (unless (derived-mode-p 'emacs-agents-board-mode) (emacs-agents-board-mode))
     (unless emacs-agents-board--source-layout

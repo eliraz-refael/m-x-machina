@@ -14,7 +14,7 @@
       (should-not (emacs-agents-sessions))
       (should (= 1 (length (emacs-agents-sessions 'all))))
       (should (equal emacs-agents--summary " Agents: 0"))
-      (should-not (with-current-buffer "*Agent Overview*" (string-match-p "Finished work" (buffer-string))))
+      (should-not (with-current-buffer "*M-x Machina Sidebar*" (string-match-p "Finished work" (buffer-string))))
       (should-error (emacs-agents-start id) :type 'user-error)
       (emacs-agents-store-close)
       (let ((session (car (emacs-agents-sessions 'archived))))

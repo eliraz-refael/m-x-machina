@@ -65,7 +65,7 @@ For ordinary Emacs, evaluate:
 
 ```elisp
 (add-to-list 'load-path "/path/to/m-x-machina/lisp")
-(require 'mxm)
+(require 'mx-machina)
 ```
 
 For Doom, load the example instead (adjust its location):
@@ -85,31 +85,31 @@ is literate, put the load form in its source Org file.
 
 ## Commands and compatibility
 
-Use `M-x mxm` to open the sidebar, `M-x mxm-new` to create an agent,
-`M-x mxm-board` for the board, and `M-x mxm-dashboard` for the session table.
-`M-x mxm-messaging-mode` enables the local CLI message service.
+Use `M-x mx-machina` to open the sidebar, `M-x mx-machina-new` to create an agent,
+`M-x mx-machina-board` for the board, and `M-x mx-machina-dashboard` for the session table.
+`M-x mx-machina-messaging-mode` enables the local CLI message service.
 
-The project name is **M-x Machina**, the repository slug is
-`m-x-machina`, and the CLI is `mxm`. Add the checkout's `scripts/` directory to
-PATH to invoke `mxm` directly, or use its full path. No global installation is
+The project name is **M-x Machina**, the Emacs package and command prefix are
+`mx-machina`, the repository slug is `m-x-machina`, and the CLI is `mxm`.
+Add the checkout's `scripts/` directory to PATH to invoke `mxm` directly, or use its full path. No global installation is
 performed by loading the package.
 
 Existing checkouts can keep their `emacs-agents` directory name. Existing
-`emacs-agents-*` commands, settings, Doom bindings, registry location and
-`EMACS_AGENTS_*` environment variables continue to work. `scripts/emacs-agents`
+`emacs-agents-*` commands, earlier `mxm` Emacs entry points, settings, Doom
+bindings, registry location and `EMACS_AGENTS_*` environment variables continue to work. `scripts/emacs-agents`
 is a compatibility launcher for `mxm`; both reach the same message service.
 No saved agents or conversation IDs need migration. The configuration examples
 below retain the established customization variable names.
 
 ## Offline demo
 
-Load `examples/demo.el` using `M-x load-file`, then run `M-x emacs-agents-demo`.
+Load `examples/demo.el` using `M-x load-file`, then run `M-x mx-machina-demo`.
 This creates a small demo Git repository under your registry directory and opens
 a local fake agent. No model, credentials, or network connection is used.
 
 1. Send a message using `M-x agent-shell-submit`. The reply shows a conversation
    ID and turn counter.
-2. Run `M-x emacs-agents`. Press `i` to inspect the saved identity, then `x` to stop.
+2. Run `M-x mx-machina`. Press `i` to inspect the saved identity, then `x` to stop.
 3. Press `RET` to resume. Send another message; the counter continues.
 4. Restart Emacs, load the package and demo file again, then open the dashboard.
    The session is stopped until you press `RET`; its next reply keeps the counter.
@@ -128,7 +128,7 @@ the new commands; its saved conversation ID is retained.
 
 ## Use a real agent
 
-Run `M-x emacs-agents`, press `n`, and choose a name and Git repository/worktree.
+Run `M-x mx-machina`, press `n`, and choose a name and Git repository/worktree.
 The next prompt asks whether to create a new worktree for this agent:
 
 - **No:** associate the agent with the selected checkout.
@@ -195,7 +195,7 @@ terminal display; `C-c C-b` returns to the live display. Vterm retains 10,000
 scrollback lines. Its wheel navigation uses page steps.
 
 **Eshell:** press `e` on an agent in the sidebar or dashboard, or run
-`M-x emacs-agents-eshell`. This opens a separate shell in that agent's worktree
+`M-x mx-machina-eshell`. This opens a separate shell in that agent's worktree
 without starting or stopping the agent. Reopening it preserves its current
 directory, command history and unsent input. Different agents get separate
 shells, even when they share a worktree. Eshell is a companion for commands;
@@ -238,7 +238,7 @@ processes; it does not keep agents running through an Emacs restart.
 
 ## Persistent overview and focus
 
-`M-x emacs-agents` opens a dedicated sidebar. A compact colored dot (or working
+`M-x mx-machina` opens a dedicated sidebar. A compact colored dot (or working
 spinner) shows state beside the agent's name; TAB and hover show the full status.
 Collapsed agents occupy one row. A subtle background marks the conversation displayed in the main
 pane independently of the sidebar navigation cursor. `TAB` expands the agent's
@@ -307,14 +307,14 @@ that layout. Closing keeps the agent running and preserves its buffer and draft;
 use `x` to stop the process explicitly. Closing from focus exits both views.
 
 Press `z` in either overview, `C-c C-z` in a managed conversation, or use
-`M-x emacs-agents-focus` to fill the frame with that conversation. Toggle again
+`M-x mx-machina-focus` to fill the frame with that conversation. Toggle again
 to restore the previous windows, sizes and selection. Sending a prompt does not
 exit focus. Opening the sidebar also restores the layout. Focus is tracked per
 frame; the saved layout is temporary and does not survive restarting Emacs.
 If a saved buffer is killed while focused, Emacs restores a surviving buffer in
 its place. Custom workspace/window managers can still replace frame layouts.
 
-The overview enables `emacs-agents-status-mode`, which adds cached counts to
+The overview enables `mx-machina-status-mode`, which adds cached counts to
 `global-mode-string` (also shown by Doom modeline's `misc-info` segment):
 
 ```text
@@ -326,7 +326,7 @@ request. These states do not establish task completion or detect arbitrary
 questions in transcript text. Starting, unknown and error counts appear when
 present; zero counts are omitted. Refreshes preserve selection and never move
 keyboard focus. Rendering the modeline does not query SQLite or launch agents.
-Disable just the counts with `M-x emacs-agents-status-mode`.
+Disable just the counts with `M-x mx-machina-status-mode`.
 
 Customize `emacs-agents-sidebar-side` (left/right) and
 `emacs-agents-sidebar-width` (columns). The sidebar uses side-window slot 1 to coexist with a sidebar
@@ -364,7 +364,7 @@ backend conversation ID has been captured yet.
 ### Agent board
 
 Press `B` in the sidebar/dashboard, `SPC o a b` with the Doom example, or run
-`M-x emacs-agents-board`. The board uses the main pane beside the sidebar. Cards
+`M-x mx-machina-board`. The board uses the main pane beside the sidebar. Cards
 are grouped by their full folder path, with Working, Waiting, Ready and Stopped
 columns. Approval requests are Waiting; errors appear in Stopped with an explicit
 ERROR label. Starting/unknown agents appear in an additional Other lane.
@@ -401,8 +401,8 @@ selection stays in place. Resolved requests leave the queue on the next command.
 
 With the Doom example, `SPC o a ]` / `SPC o a [` work from any buffer and select
 the sidebar entry when invoked outside an overview. For a narrower queue, use
-`M-x emacs-agents-next-waiting` / `emacs-agents-previous-waiting` or
-`emacs-agents-next-unread` / `emacs-agents-previous-unread`.
+`M-x mx-machina-next-waiting` / `mx-machina-previous-waiting` or
+`mx-machina-next-unread` / `mx-machina-previous-unread`.
 
 ### Contextual actions
 
@@ -424,11 +424,11 @@ output. It uses ordinary Emacs buffers and works with the optional Evil setup.
 
 ## Agent-to-agent CLI messaging (experimental)
 
-Enable `M-x mxm-messaging-mode` in the owning Emacs, or add:
+Enable `M-x mx-machina-messaging-mode` in the owning Emacs, or add:
 
 ```elisp
-(require 'mxm)
-(mxm-messaging-mode 1)
+(require 'mx-machina)
+(mx-machina-messaging-mode 1)
 ```
 
 This starts a local Emacs server if needed. Python 3 and `emacsclient` must be on
@@ -475,7 +475,7 @@ Delivery waits while the recipient is busy, awaiting approval, visible in any
 Emacs window, or holding an unsent draft. Hide its conversation to allow delivery.
 Existing terminal buffers initially have uncertain draft state: submit your draft
 normally, or clear the terminal's prompt and run
-`M-x emacs-agents-messaging-ready` for that agent. This command confirms the prompt
+`M-x mx-machina-messaging-ready` for that agent. This command confirms the prompt
 is empty; it does not erase anything. Terminal navigation can conservatively hold
 further delivery too. Agent-shell checks its actual input buffer. Sending never
 launches stopped agents, answers permission prompts, switches your visible view,
@@ -509,7 +509,7 @@ The session ID identifies the managed record. The conversation ID identifies the
 backend conversation. Each launch gets a new run ID; reopening a live buffer does
 not launch another process.
 
-Press `i` in the sidebar or dashboard, or run `M-x emacs-agents-diagnostics`,
+Press `i` in the sidebar or dashboard, or run `M-x mx-machina-diagnostics`,
 to inspect an agent. Diagnostics fills the main pane; `g` refreshes the snapshot,
 `w` copies its summary, and `q` returns to the previous buffer. These keys also
 work with the optional Evil setup. Inspecting an agent leaves its unread flag
@@ -531,7 +531,7 @@ The latest raw failure appears separately in the local view and is omitted by
 `w`; copying the entire buffer manually also copies that failure detail.
 
 Press `W` in the sidebar, dashboard or diagnostics, or run
-`M-x emacs-agents-rebind-worktree`, to recover a stopped agent's checkout
+`M-x mx-machina-rebind-worktree`, to recover a stopped agent's checkout
 association. Choose the relocated worktree, or keep the current directory to
 accept its actual branch. Review the recorded and proposed path/branch, then
 confirm. Cancelling leaves the registry untouched. The command checks again
@@ -552,7 +552,7 @@ Backend history relocation is not automated. Profile/account guidance follows.
 Diagnostics now includes recovery steps for missing profiles, authentication
 failures, unsupported resume, missing history and unconfirmed terminal startup.
 After repairing the original configuration, press `R` **inside diagnostics**
-(`M-x emacs-agents-retry` elsewhere). Review the profile and saved conversation ID,
+(`M-x mx-machina-retry` elsewhere). Review the profile and saved conversation ID,
 then confirm the retry. `R` still renames agents in the sidebar. Retry requires a
 stopped, active record with a saved conversation and a valid checkout. It checks
 for configuration/record changes during confirmation and submits no prompt.
@@ -569,7 +569,7 @@ SessionStart cannot by itself distinguish login, trust, hooks and missing histor
 The implementation stops managed ACP transports when the Emacs process exits
 normally. Closing a client frame while an Emacs daemon stays alive does not stop
 them. Killing a live managed agent buffer is blocked: bury it to hide it or use
-`emacs-agents-stop` first. Use the dashboard for starting and resuming managed
+`mx-machina-stop` first. Use the dashboard for starting and resuming managed
 sessions instead of the backend's own restart/fork commands.
 
 After restart, opening the dashboard loads metadata only. Press `RET` to resume
@@ -604,8 +604,8 @@ delete branches, worktrees, or backend conversation files.
   stopping its process. Conversation files, branches and worktrees remain on
   disk; open conversation buffers and eshell drafts are retained.
 
-These commands also exist as `M-x emacs-agents-archive`, `emacs-agents-archived`,
-`emacs-agents-restore`, and `emacs-agents-delete`. The registry upgrades to schema
+These commands also exist as `M-x mx-machina-archive`, `mx-machina-archived`,
+`mx-machina-restore`, and `mx-machina-delete`. The registry upgrades to schema
 3 automatically. Restoring and deleting do not require the worktree to exist.
 
 An external host for optional background execution is planned. Full descendant

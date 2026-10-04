@@ -175,7 +175,7 @@ This work can proceed alongside recovery; it gates a stable release.
   **Done when:** recovery and release gates above are met and release/publishing
   is explicitly authorized. No publication is implied by this backlog.
   **Naming chosen 2026-10-04:** M-x Machina, repository slug `m-x-machina`,
-  CLI and public Emacs entry point `mxm`. Legacy entry points and persistent
+  CLI `mxm` and public Emacs entry point `mx-machina`. Legacy entry points and persistent
   storage paths remain supported. The public source repository is published with
   protected PR-only `main`; a tagged release remains pending.
 

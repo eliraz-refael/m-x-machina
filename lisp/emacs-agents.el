@@ -4,7 +4,7 @@
 ;; Package-Requires: ((emacs "29.1"))
 ;; Keywords: tools, processes
 ;;; Commentary:
-;; M-x emacs-agents opens the dashboard.  Create a session in an existing Git
+;; Compatibility implementation for M-x Machina.  Create a session in an existing Git
 ;; worktree, launch it, and resume its exact backend conversation after restart.
 ;;; Code:
 (require 'emacs-agents-store)
@@ -467,7 +467,7 @@ Never replay input or create a replacement for a saved conversation."
     (setq emacs-agents--ui-folders (emacs-agents-folders))
     (emacs-agents--refresh-ui sessions)
     (when (fboundp 'emacs-agents-board--refresh) (emacs-agents-board--refresh))
-    (dolist (name '("*Emacs Agents*" "*Archived Agents*"))
+    (dolist (name '("*M-x Machina*" "*M-x Machina Archive*"))
      (when-let* ((buffer (get-buffer name)))
       (with-current-buffer buffer
         (setq tabulated-list-entries
@@ -507,7 +507,7 @@ Never replay input or create a replacement for a saved conversation."
     (define-key map (kbd "s") #'emacs-agents)
     map))
 
-(define-derived-mode emacs-agents-mode tabulated-list-mode "Agents"
+(define-derived-mode emacs-agents-mode tabulated-list-mode "Machina"
   "Dashboard for persistent coding-agent sessions."
   (setq tabulated-list-format [("Session" 20 t) ("Process" 10 t) ("Activity" 10 t)
                                ("Profile" 22 t) ("Branch" 20 t) ("Identity" 9 t)
@@ -525,7 +525,7 @@ Never replay input or create a replacement for a saved conversation."
     (define-key map (kbd "A") #'emacs-agents-dashboard)
     map))
 
-(define-derived-mode emacs-agents-archive-mode emacs-agents-mode "Archived Agents"
+(define-derived-mode emacs-agents-archive-mode emacs-agents-mode "Machina Archive"
   "Archived records; RET restores without launching and d deletes only the record."
   (setq-local header-line-format " Archived agents · RET/r restore   d delete record   A active agents   q close"))
 
@@ -534,7 +534,7 @@ Never replay input or create a replacement for a saved conversation."
   (interactive)
   (emacs-agents)
   (emacs-agents--select-main-window)
-  (switch-to-buffer (get-buffer-create "*Archived Agents*"))
+  (switch-to-buffer (get-buffer-create "*M-x Machina Archive*"))
   (unless (derived-mode-p 'emacs-agents-archive-mode) (emacs-agents-archive-mode))
   (emacs-agents-refresh))
 
@@ -544,7 +544,7 @@ Never replay input or create a replacement for a saved conversation."
   (interactive)
   (emacs-agents)
   (emacs-agents--select-main-window)
-  (with-current-buffer (get-buffer-create "*Emacs Agents*")
+  (with-current-buffer (get-buffer-create "*M-x Machina*")
     (emacs-agents-mode)
     (emacs-agents-refresh)
     (pop-to-buffer (current-buffer))))
