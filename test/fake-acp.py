@@ -54,6 +54,8 @@ def respond(request):
     with (storage / "requests.jsonl").open("a") as log:
         log.write(json.dumps({"method": method, "params": params}) + "\n")
     if method == "initialize":
+        if mode == "authentication-failure":
+            raise PermissionError("Authentication required: sign in to the original account")
         return {"protocolVersion": 1,
                 "agentCapabilities": {"loadSession": mode != "unsupported"},
                 "authMethods": []}

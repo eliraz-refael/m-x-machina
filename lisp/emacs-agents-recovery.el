@@ -100,5 +100,43 @@ current branch.  Never switch branches, move files or start an agent."
           (user-error "Worktree recovery cancelled"))
         (emacs-agents-recovery--apply session target)))))
 
+(defun emacs-agents-recovery--profile (session)
+  "Resolve SESSION's existing profile without exposing configuration errors."
+  (let ((configs (condition-case nil (emacs-agents-backend-configs)
+                   (error (user-error "Fix your profile definitions, reload them, and inspect diagnostics before retrying")))))
+    (or (seq-find (lambda (config)
+                   (equal (emacs-agents-session-profile session)
+                          (symbol-name (map-elt config :identifier)))) configs)
+        (user-error "Restore the original profile %s and its account configuration; i explains recovery"
+                    (emacs-agents-session-profile session)))))
+
+;;;###autoload
+(defun emacs-agents-retry (id)
+  "Confirm an explicit retry of ID's saved conversation after configuration repair.
+Keep the same profile and conversation ID; never create a new conversation."
+  (interactive (list (emacs-agents-diagnostics--read-id)))
+  (let* ((session (emacs-agents-recovery--session id))
+         (conversation (emacs-agents-session-conversation session)))
+    (emacs-agents-recovery--require-stopped session)
+    (when (emacs-agents-archived-p session) (user-error "Restore this archived record before retrying"))
+    (unless (and (stringp conversation) (not (string-empty-p conversation)))
+      (user-error "No saved conversation to retry; inspect the retained buffer or create a separate agent explicitly"))
+    (let ((config (copy-tree (emacs-agents-recovery--profile session))))
+      (unless (equal (emacs-agents--worktree (emacs-agents-session-directory session))
+                     (list (emacs-agents-session-directory session) (emacs-agents-session-branch session)))
+        (user-error "Checkout changed; use W to review the association before retrying"))
+      (unless (yes-or-no-p
+               (format "Retry %s with profile %s and saved conversation %s? Confirm the original backend/account configuration is restored. "
+                       (emacs-agents-session-name session) (emacs-agents-session-profile session) conversation))
+        (user-error "Retry cancelled"))
+      (unless (equal config (emacs-agents-recovery--profile session))
+        (user-error "Profile configuration changed during confirmation; inspect it and try again"))
+      (unless (equal session (emacs-agents-recovery--session id))
+        (user-error "Agent record changed during confirmation; inspect it and try again"))
+      (emacs-agents-recovery--require-stopped session)
+      ;; The normal start guards recheck the checkout and fix the transport's
+      ;; expected ID.  No prompt is submitted or replayed by this command.
+      (emacs-agents-open id))))
+
 (provide 'emacs-agents-recovery)
 ;;; emacs-agents-recovery.el ends here

@@ -6,6 +6,11 @@
 (require 'emacs-agents)
 
 (with-eval-after-load 'evil
+  (evil-set-initial-state 'emacs-agents-board-mode 'motion)
+  (with-eval-after-load 'emacs-agents-board
+    (dolist (key '("j" "k" "h" "l" "TAB" "RET" "f" "g" "n" "i" "q"))
+      (evil-define-key 'motion emacs-agents-board-mode-map (kbd key)
+        (lookup-key emacs-agents-board-mode-map (kbd key)))))
   (add-hook 'emacs-agents-eat-setup-hook #'emacs-agents-eat-setup-evil)
   (add-hook 'emacs-agents-vterm-setup-hook #'emacs-agents-vterm-setup-evil)
   (evil-set-initial-state 'emacs-agents-diagnostics-mode 'normal)
@@ -14,6 +19,7 @@
       (kbd "q") #'emacs-agents-diagnostics-return
       (kbd "g") #'emacs-agents-diagnostics-refresh
       (kbd "W") #'emacs-agents-rebind-worktree
+      (kbd "R") #'emacs-agents-retry
       (kbd "w") #'emacs-agents-diagnostics-copy))
   (evil-set-initial-state 'emacs-agents-transcript-mode 'normal)
   (with-eval-after-load 'emacs-agents-transcript
@@ -39,6 +45,7 @@
                      ("g" . emacs-agents-refresh) ("f" . emacs-agents-files)
                      ("m" . emacs-agents-magit) ("i" . emacs-agents-details)
                      ("W" . emacs-agents-rebind-worktree)
+                     ("B" . emacs-agents-board)
                      ("e" . emacs-agents-eshell)
                      ("TAB" . emacs-agents-sidebar-expand) ("z" . emacs-agents-focus)
                      ("D" . emacs-agents-dashboard) ("c" . emacs-agents-close-view)
@@ -53,6 +60,7 @@
                      ("g" . emacs-agents-refresh) ("f" . emacs-agents-files)
                      ("m" . emacs-agents-magit) ("i" . emacs-agents-details)
                      ("W" . emacs-agents-rebind-worktree)
+                     ("B" . emacs-agents-board)
                      ("e" . emacs-agents-eshell)
                      ("z" . emacs-agents-focus) ("s" . emacs-agents)
                      ("q" . quit-window)))
@@ -62,6 +70,7 @@
   (eval '(map! :leader (:prefix ("o a" . "agents")
                         :desc "Agent sidebar" "a" #'emacs-agents
                         :desc "Full dashboard" "d" #'emacs-agents-dashboard
+                        :desc "Agent board" "b" #'emacs-agents-board
                         :desc "Focus / restore layout" "z" #'emacs-agents-focus
                         :desc "Close conversation view" "c" #'emacs-agents-close-view
                         :desc "New session" "n" #'emacs-agents-new))))

@@ -57,10 +57,12 @@
     (let* ((id (emacs-agents-create "Unsupported" repo "mock-agent"))
            (run (emacs-agents--begin-run id)))
       (emacs-agents--observe id run "stopped" "unknown" "saved-conversation")
-      (emacs-agents-start id)
+      (cl-letf (((symbol-function 'yes-or-no-p) (lambda (&rest _) t)))
+        (emacs-agents-retry id))
       (emacs-agents-test-wait
        (lambda () (equal (emacs-agents-session-status (emacs-agents-session id)) "failed")))
       (should (equal (emacs-agents-session-conversation (emacs-agents-session id)) "saved-conversation"))
+      (should (eq (emacs-agents-diagnostics--failure-kind (emacs-agents-session-error (emacs-agents-session id))) 'unsupported))
       (with-temp-buffer
         (insert-file-contents (expand-file-name "backend/requests.jsonl" temporary))
         (should-not (string-match-p "session/new" (buffer-string)))))))
@@ -70,10 +72,12 @@
     (let* ((id (emacs-agents-create "Missing" repo "mock-agent"))
            (run (emacs-agents--begin-run id)))
       (emacs-agents--observe id run "stopped" "unknown" "missing-conversation")
-      (emacs-agents-start id)
+      (cl-letf (((symbol-function 'yes-or-no-p) (lambda (&rest _) t)))
+        (emacs-agents-retry id))
       (emacs-agents-test-wait
        (lambda () (equal (emacs-agents-session-status (emacs-agents-session id)) "failed")))
       (should (equal (emacs-agents-session-conversation (emacs-agents-session id)) "missing-conversation"))
+      (should (eq (emacs-agents-diagnostics--failure-kind (emacs-agents-session-error (emacs-agents-session id))) 'resume))
       (with-temp-buffer
         (insert-file-contents (expand-file-name "backend/requests.jsonl" temporary))
         (should (string-match-p "session/load" (buffer-string)))
@@ -232,3 +236,20 @@
             (should (= 1 (length loads)))
             (should (equal sid (map-nested-elt (car loads) '(params sessionId))))
             (should (file-equal-p new (map-nested-elt (car loads) '(params cwd))))))))))
+
+(ert-deftest emacs-agents-acp-retry-authentication-failure-retains-id ()
+  (emacs-agents-test-with-acp
+    (setq agent-shell-mock-agent-acp-command
+          (append agent-shell-mock-agent-acp-command '("authentication-failure")))
+    (let* ((id (emacs-agents-create "Authentication" repo "mock-agent"))
+           (run (emacs-agents--begin-run id)))
+      (emacs-agents--observe id run "stopped" "unknown" "saved-id")
+      (cl-letf (((symbol-function 'yes-or-no-p) (lambda (&rest _) t)))
+        (emacs-agents-retry id))
+      (emacs-agents-test-wait
+       (lambda () (equal (emacs-agents-session-status (emacs-agents-session id)) "failed")))
+      (should (equal (emacs-agents-session-conversation (emacs-agents-session id)) "saved-id"))
+      (should (eq (emacs-agents-diagnostics--failure-kind (emacs-agents-session-error (emacs-agents-session id))) 'authentication))
+      (with-temp-buffer
+        (insert-file-contents (expand-file-name "backend/requests.jsonl" temporary))
+        (should-not (string-match-p "session/new\\|session/prompt" (buffer-string)))))))

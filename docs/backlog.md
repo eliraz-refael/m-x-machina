@@ -43,7 +43,7 @@ an explicit recovery action without losing its saved identity.
   path and branch. Confirmation is revalidated before saving. Existing shell
   drafts survive relocation; backend resume retains the original identity even
   when history cannot be loaded from the new directory.
-- [ ] **REC-3 — Profile and resume recovery.** Explain unavailable profiles,
+- [x] **REC-3 — Profile and resume recovery.** Explain unavailable profiles,
   authentication failures, unsupported resume and missing backend history.
   Support correcting an equivalent profile only where its account and backend
   identity can be verified; otherwise guide the user through configuration repair
@@ -51,6 +51,12 @@ an explicit recovery action without losing its saved identity.
   **Done when:** retry targets the original conversation and never silently
   starts a replacement; supported recovery actions have failure-path tests.
   Depends on REC-1.
+  **Completed 2026-10-04:** diagnostics provides configuration/account/history
+  repair guidance, and `R` confirms an exact-ID retry. Unsupported ACP resume is
+  distinguished from a rejected resume; replacement remains blocked. Existing
+  records have no verifiable account snapshot, so this slice uses the guided
+  configuration-repair path and does not offer profile reassignment. Verified
+  substitution would require additional durable identity evidence.
 - [ ] **REC-4 — Real restart pilot.** Exercise real Claude sessions across a full
   Emacs shutdown/restart, including account isolation and each supported interface.
   Coordinate an interruption window with the user before stopping active work.
@@ -58,8 +64,8 @@ an explicit recovery action without losing its saved identity.
   replay, correct unread behavior and useful failure messages. Record CLI/package
   versions and any interface-specific limits. Depends on REC-1 through REC-3.
 
-**Next implementation slice:** REC-3, profile and resume recovery. REC-1 and
-REC-2 are complete; the REC-4 restart pilot follows REC-3.
+**Next recovery milestone:** REC-4, the real restart pilot, with an agreed
+interruption window. REC-1 through REC-3 are complete.
 
 ## 2. Attention and navigation
 
@@ -100,6 +106,24 @@ Goal: make several concurrent agents manageable without inspecting each one.
   **Done when:** supported switches preserve identity and resume behavior;
   unsupported switches explain why and leave the record unchanged. Depends on
   REC-3. Do not switch a running transport in place.
+
+- [x] **UX-3 — Visual polish and optional agent board.** Improve sidebar
+  spacing, status emphasis, selection and readable names first. Explore an
+  optional full overview with agent cards, a folder/project scope and columns for
+  working, waiting for input, ready and stopped. Keep the persistent sidebar as
+  the everyday navigation view. Folder breadcrumbs should handle deep nesting;
+  unread markers remain independent of process status.
+  **Evaluate with a small prototype:** opening a card fills the conversation pane,
+  keyboard navigation and narrow frames remain usable, and returning restores
+  the board selection. Status comes from agents; moving a card must not pretend
+  to change a running process's state. Decide whether the board adds value before
+  replacing or expanding the current interface. Proposed 2026-10-04.
+  **Accepted 2026-10-04:** `B` / `SPC o a b` opens cards grouped by full
+  folder path and observed state; `f` scopes folders. Adaptive columns, wrapped
+  names, stable selection, unread markers and conversation/board/editor return
+  paths are implemented. The sidebar has lighter detail text and clearer folder
+  spacing/headings. The user tested and accepted the design; further refinements
+  can follow daily-use feedback.
 
 ## 4. Release readiness
 

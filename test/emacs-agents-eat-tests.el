@@ -342,4 +342,35 @@
             (should (eq (alist-get 'new resume) :null))
             (should (equal (alist-get 'account resume) "fixture-account"))
             (should (file-equal-p (alist-get 'cwd resume) new))))))))
+
+(ert-deftest emacs-agents-eat-retry-restored-profile-resumes-without-input ()
+  (emacs-agents-test-with-eat
+    (let ((id (emacs-agents-create "Restore profile" repo "test-eat")))
+      (emacs-agents-start id)
+      (emacs-agents-eat-test-wait
+       (lambda () (equal (emacs-agents-session-status (emacs-agents-session id)) "live")))
+      (let ((sid (emacs-agents-session-conversation (emacs-agents-session id)))
+            (profiles emacs-agents-eat-profiles))
+        (emacs-agents-stop id)
+        (setq emacs-agents-eat-profiles nil)
+        (should-error (emacs-agents-retry id) :type 'user-error)
+        (setq emacs-agents-eat-profiles profiles)
+        (cl-letf (((symbol-function 'yes-or-no-p) (lambda (&rest _) t)))
+          (emacs-agents-retry id))
+        (emacs-agents-eat-test-wait
+         (lambda () (equal (emacs-agents-session-status (emacs-agents-session id)) "live")))
+        (should (equal sid (emacs-agents-session-conversation (emacs-agents-session id))))
+        (with-temp-buffer
+          (insert-file-contents (expand-file-name "claude/launches.jsonl" temporary))
+          (let* ((rows (mapcar (lambda (line) (json-parse-string line :object-type 'alist))
+                               (split-string (buffer-string) "\n" t)))
+                 (retry (nth 1 rows)))
+            (should (= 2 (length rows)))
+            (should (equal (alist-get 'resume retry) sid))
+            (should (eq (alist-get 'new retry) :null))
+            (should (equal (alist-get 'account retry) "fixture-account"))))
+        (with-temp-buffer
+          (insert-file-contents (expand-file-name (concat "claude/" sid ".json") temporary))
+          (should (zerop (json-parse-string (buffer-string)))))))))
+
 ;;; emacs-agents-eat-tests.el ends here

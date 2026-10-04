@@ -35,7 +35,7 @@
   "Read an agent ID without changing registry observations."
   (or emacs-agents-diagnostics--id
       (and (derived-mode-p 'emacs-agents-mode) (tabulated-list-get-id))
-      (and (derived-mode-p 'emacs-agents-sidebar-mode) (get-text-property (point) 'emacs-agents-id))
+      (and (derived-mode-p 'emacs-agents-sidebar-mode 'emacs-agents-board-mode) (get-text-property (point) 'emacs-agents-id))
       emacs-agents--managed-id
       (let ((choices (mapcar (lambda (session)
                               (cons (format "%s/%s [%s]%s" (emacs-agents-session-folder session)
@@ -47,21 +47,62 @@
         (unless choices (user-error "No saved agents to diagnose"))
         (cdr (assoc (completing-read "Diagnose agent: " choices nil t) choices)))))
 
-(defun emacs-agents-diagnostics--failure (error-text)
-  "Classify ERROR-TEXT without including arbitrary backend text in a report."
+(defun emacs-agents-diagnostics--failure-kind (error-text)
+  "Classify ERROR-TEXT without returning arbitrary backend text."
   (let ((case-fold-search t))
     (cond
-     ((not (and (stringp error-text) (not (string-empty-p error-text)))) "None recorded")
-     ((string-match-p "auth\\|credential\\|unauthorized\\|login\\|401" error-text)
-      "Authentication-related failure; check the selected account in its backend")
-     ((string-match-p "history\\|conversation.*not found\\|cannot find.*conversation" error-text)
-      "Saved history unavailable; retain the saved ID while investigating")
-     ((string-match-p "identity\\|different conversation\\|replacement" error-text)
-      "Conversation identity failure; replacement was blocked")
-     ((string-match-p "SessionStart\\|before confirming" error-text)
-      "SessionStart was not confirmed; inspect terminal onboarding, trust and hooks")
-     ((string-match-p "event bridge" error-text) "Claude event bridge failed; status observations stopped")
-     (t "Backend/startup failure recorded; inspect the local error detail"))))
+     ((not (and (stringp error-text) (not (string-empty-p error-text)))) nil)
+     ((string-match-p "auth\\|credential\\|unauthorized\\|login\\|401" error-text) 'authentication)
+     ((string-match-p "unsupported resume\\|resume.*not supported\\|does not support.*resum" error-text) 'unsupported)
+     ((string-match-p "resume failed" error-text) 'resume)
+     ((string-match-p "history\\|conversation.*not found\\|cannot find.*conversation" error-text) 'history)
+     ((string-match-p "identity\\|different conversation\\|replacement" error-text) 'identity)
+     ((string-match-p "SessionStart\\|before confirming" error-text) 'unconfirmed)
+     ((string-match-p "event bridge" error-text) 'bridge)
+     (t 'other))))
+
+(defun emacs-agents-diagnostics--failure (error-text)
+  "Describe ERROR-TEXT without exposing arbitrary backend text."
+  (pcase (emacs-agents-diagnostics--failure-kind error-text)
+    ('authentication "Authentication-related failure; check the selected account in its backend")
+    ('unsupported "Unsupported resume; this backend did not offer loading or resuming saved sessions")
+    ('history "Saved history unavailable; retain the saved ID while investigating")
+    ('resume "Resume failed; replacement was blocked and the original ID was retained")
+    ('identity "Conversation identity failure; replacement was blocked")
+    ('unconfirmed "SessionStart was not confirmed; inspect terminal onboarding, trust and hooks")
+    ('bridge "Claude event bridge failed; status observations stopped")
+    ('other "Backend/startup failure recorded; inspect the local error detail")
+    (_ "None recorded")))
+
+(defun emacs-agents-diagnostics--guidance (session config config-failed)
+  "Return actionable local recovery steps for SESSION and its CONFIG.
+CONFIG-FAILED means profile definitions could not be inspected."
+  (let ((steps
+         (cond
+          (config-failed
+           (list "Fix the error in your profile definitions, reload them, then press g. No profile was selected automatically."))
+          ((not config)
+           (list (format "Restore the original definition with identifier %s in emacs-agents-eat-profiles, emacs-agents-vterm-profiles, or agent-shell-agent-configs. Reload that configuration, then press g."
+                         (emacs-agents-session-profile session)))))))
+    (when-let* ((step
+                 (pcase (emacs-agents-diagnostics--failure-kind (emacs-agents-session-error session))
+                   ('authentication "Sign in again using the original account and the saved profile's authentication configuration. For Claude terminals, keep its original CLAUDE_CONFIG_DIR; for ACP, check that profile's authentication settings. Then stop the failed run before retrying.")
+                   ('unsupported "Restore a backend/version that supports loading or resuming this saved conversation. Repeated retries cannot add missing resume support. To start over, create a separate agent with n in the sidebar; retain this record.")
+                   ('history "Check the original account, backend history and working directory. Restore history from your own backup if available. W repairs the saved checkout association, but does not move backend history. If history cannot be recovered, use n in the sidebar to create a separate agent.")
+                   ((or 'resume 'identity) "Inspect the local error and retained backend buffer. Check the original account, history and working directory; the backend may have rejected this saved ID. Replacement requests stay blocked. Use a separate new agent if you intentionally want a fresh conversation.")
+                   ('unconfirmed "Inspect the retained terminal for login, trust, hook or missing-history messages. No SessionStart alone does not identify which of these failed. Complete setup in the original account, then stop the run before retrying.")
+                   ('bridge "Check the hook helper and Python dependency above. Inspect the retained terminal, then stop the failed run before retrying.")
+                   ('other "Inspect the local failure detail and retained backend buffer, fix the reported configuration or dependency problem, then stop the failed run before retrying."))))
+      (setq steps (append steps (list step))))
+    (append steps
+            (list "Profile/account verification: this registry stores a profile identifier, not a verified account identity. Restore the original backend and account configuration. Matching display names are insufficient for reassignment; automatic profile replacement is unavailable.")
+            (list (cond
+                   ((emacs-agents-archived-p session) "Restore this archived record from A before retrying.")
+                   ((not (emacs-agents-session-conversation session))
+                    (if (emacs-agents-session-run session)
+                        "No conversation ID was captured. Retry is disabled; inspect the retained buffer or create a separate agent explicitly."
+                      "This agent has not created a conversation yet. Open it from the sidebar for its first start; R only retries saved conversations."))
+                   (t "After repair, stop any remaining process with x in the sidebar. R here reviews and retries the saved conversation with its existing profile. It sends no prompt and creates no replacement conversation."))))))
 
 (defun emacs-agents-diagnostics--collect (id)
   "Collect local checks for ID as (:session SESSION :checks ROWS).
@@ -170,7 +211,8 @@ Each row is (LABEL SEVERITY DETAIL).  Do not launch or poll anything."
                 (row "Event file" (if readable 'ok 'warning)
                      (if readable (format "Readable; %d bytes consumed" emacs-agents-claude--offset)
                        "Not readable or not created yet; hooks may not have written an event")))))))
-      (list :session session :checks (nreverse checks)))))
+      (list :session session :checks (nreverse checks)
+            :guidance (emacs-agents-diagnostics--guidance session config config-failed)))))
 
 (defun emacs-agents-diagnostics--text (report)
   "Format REPORT for sharing, excluding raw errors and backend payloads."
@@ -187,6 +229,8 @@ Each row is (LABEL SEVERITY DETAIL).  Do not launch or poll anything."
                     (if (emacs-agents-archived-p session) "yes" "no"))
             (mapconcat (lambda (row) (format "[%s] %s: %s" (upcase (symbol-name (nth 1 row))) (car row) (nth 2 row)))
                        (plist-get report :checks) "\n")
+            "\n\nRecovery steps\n"
+            (mapconcat (lambda (step) (concat "• " step)) (plist-get report :guidance) "\n\n")
             "\n\nLocal snapshot only; provider authentication and saved history were not contacted.\n"
             "Includes local paths and IDs. Excludes raw errors, command arguments, environment values and conversation text.\n")))
 
@@ -227,12 +271,13 @@ Each row is (LABEL SEVERITY DETAIL).  Do not launch or poll anything."
     (set-keymap-parent map special-mode-map)
     (define-key map (kbd "g") #'emacs-agents-diagnostics-refresh)
     (define-key map (kbd "w") #'emacs-agents-diagnostics-copy)
+    (define-key map (kbd "R") #'emacs-agents-retry)
     (define-key map (kbd "W") #'emacs-agents-rebind-worktree)
     (define-key map (kbd "q") #'emacs-agents-diagnostics-return)
     map))
 (define-derived-mode emacs-agents-diagnostics-mode special-mode "Agent Diagnostics"
   "A read-only local snapshot of agent readiness and runtime health."
-  (setq-local truncate-lines nil header-line-format " Diagnostics · g refresh · w copy · W worktree · q return")
+  (setq-local truncate-lines nil header-line-format " Diagnostics · g refresh · w copy · W worktree · R retry · q return")
   (visual-line-mode 1))
 
 ;;;###autoload

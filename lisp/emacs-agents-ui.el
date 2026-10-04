@@ -19,6 +19,12 @@
 (defcustom emacs-agents-sidebar-width 34
   "Preferred width of the agent overview in columns."
   :type 'integer :group 'emacs-agents)
+(defcustom emacs-agents-sidebar-line-spacing 0.12
+  "Extra line spacing in the sidebar; 0 keeps compact rows."
+  :type 'number :group 'emacs-agents)
+(defface emacs-agents-folder
+  '((t :inherit font-lock-keyword-face :weight bold))
+  "Logical folder headings in the sidebar." :group 'emacs-agents)
 
 (defface emacs-agents-working
   '((((class color) (background dark)) :foreground "#51afef" :weight bold)
@@ -201,18 +207,20 @@ Explicitly marking an agent read with `emacs-agents-mark-read' bypasses it."
             (if (emacs-agents-unread-p session)
                 (propertize "* " 'face 'emacs-agents-unread) "")
             (propertize (emacs-agents-session-name session)
-                        'face (if (emacs-agents-unread-p session) 'emacs-agents-unread 'bold))
+                        'face (if (emacs-agents-unread-p session) 'emacs-agents-unread 'default))
             "\n")
     (when (equal sid emacs-agents--active-session)
       (add-face-text-property (+ start (length padding)) (1- (point))
                               'emacs-agents-active-session t))
     (when expanded
+      (let ((details-start (point)))
       (insert padding "  State: " (emacs-agents--state-label session)
               "\n" padding "  Dir: " (abbreviate-file-name directory)
               "\n" padding "  Branch: " (emacs-agents-session-branch session)
               "\n" padding "  Profile: " (emacs-agents-session-profile session)
               "\n" padding "  Model: " (or (emacs-agents-session-model session) "not reported")
-              "\n" padding "  Identity: " (if (emacs-agents-session-conversation session) "saved" "pending") "\n"))
+              "\n" padding "  Identity: " (if (emacs-agents-session-conversation session) "saved" "pending") "\n")
+      (add-face-text-property details-start (point) 'shadow t)))
     (add-text-properties start (point)
                          (list 'emacs-agents-id sid 'emacs-agents-node sid
                                'help-echo (format "%s · %s%s\nFolder: %s\n%s"
@@ -242,10 +250,13 @@ Explicitly marking an agent read with `emacs-agents-mark-read' bypasses it."
              (waiting (seq-count (lambda (session) (member (emacs-agents--activity session) '("waiting" "approval"))) members))
              (unread (seq-count #'emacs-agents-unread-p members))
              (start (point)))
+        (when (and (= depth 0) (not (bobp)))
+          (insert "\n")
+          (setq start (point)))
         (insert (emacs-agents--tree-padding depth)
                 (if (member folder emacs-agents--collapsed) "▸ " "▾ ")
-                (propertize (car (last parts)) 'face 'font-lock-keyword-face)
-                (format " (%d)" (length members))
+                (propertize (car (last parts)) 'face 'emacs-agents-folder)
+                (propertize (format " (%d)" (length members)) 'face 'shadow)
                 (if (> working 0) (propertize (format " %d working" working) 'face 'emacs-agents-working) "")
                 (if (> waiting 0) (propertize (format " %d waiting" waiting) 'face 'emacs-agents-waiting) "")
                 (if (> unread 0) (propertize (format " ● %d NEW" unread) 'face 'emacs-agents-unread) "") "\n")
@@ -369,6 +380,7 @@ Explicitly marking an agent read with `emacs-agents-mark-read' bypasses it."
                        ("g" . emacs-agents-refresh) ("f" . emacs-agents-files)
                        ("m" . emacs-agents-magit) ("i" . emacs-agents-details)
                        ("W" . emacs-agents-rebind-worktree)
+                       ("B" . emacs-agents-board)
                        ("e" . emacs-agents-eshell)
                        ("TAB" . emacs-agents-sidebar-expand) ("z" . emacs-agents-focus)
                        ("j" . emacs-agents-sidebar-next) ("k" . emacs-agents-sidebar-previous)
@@ -382,8 +394,9 @@ Explicitly marking an agent read with `emacs-agents-mark-read' bypasses it."
 (define-derived-mode emacs-agents-sidebar-mode special-mode "Agent Overview"
   "Persistent session overview.  TAB expands; RET opens; z focuses; D lists all."
   (setq-local truncate-lines t
+              line-spacing emacs-agents-sidebar-line-spacing
               cursor-type 'box
-              header-line-format " Agents · a archive · A archived"
+              header-line-format " Agents · B board · n new"
               emacs-agents--expanded nil
               emacs-agents--collapsed nil)
   (hl-line-mode 1)

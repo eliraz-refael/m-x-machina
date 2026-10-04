@@ -118,7 +118,7 @@ Return the saved session ID without starting its backend."
 (defun emacs-agents--read-id ()
   "Read a session ID, preferring the current dashboard row or managed buffer."
   (or (and (derived-mode-p 'emacs-agents-mode) (tabulated-list-get-id))
-      (and (derived-mode-p 'emacs-agents-sidebar-mode)
+      (and (derived-mode-p 'emacs-agents-sidebar-mode 'emacs-agents-board-mode)
            (get-text-property (point) 'emacs-agents-id))
       emacs-agents--managed-id
       (let ((choices (mapcar
@@ -436,6 +436,9 @@ Never replay input or create a replacement for a saved conversation."
 
 (autoload 'emacs-agents-diagnostics "emacs-agents-diagnostics" nil t)
 (autoload 'emacs-agents-rebind-worktree "emacs-agents-recovery" nil t)
+(autoload 'emacs-agents-retry "emacs-agents-recovery" nil t)
+(autoload 'emacs-agents-board "emacs-agents-board" nil t)
+(declare-function emacs-agents-board--refresh "emacs-agents-board")
 
 (defun emacs-agents-details (&optional id)
   "Display local diagnostics for ID, or choose an agent interactively."
@@ -449,6 +452,7 @@ Never replay input or create a replacement for a saved conversation."
   (let ((sessions (emacs-agents-sessions)))
     (setq emacs-agents--ui-folders (emacs-agents-folders))
     (emacs-agents--refresh-ui sessions)
+    (when (fboundp 'emacs-agents-board--refresh) (emacs-agents-board--refresh))
     (dolist (name '("*Emacs Agents*" "*Archived Agents*"))
      (when-let* ((buffer (get-buffer name)))
       (with-current-buffer buffer
@@ -479,6 +483,7 @@ Never replay input or create a replacement for a saved conversation."
     (define-key map (kbd "f") #'emacs-agents-files)
     (define-key map (kbd "m") #'emacs-agents-magit)
     (define-key map (kbd "i") #'emacs-agents-details)
+    (define-key map (kbd "B") #'emacs-agents-board)
     (define-key map (kbd "W") #'emacs-agents-rebind-worktree)
     (define-key map (kbd "e") #'emacs-agents-eshell)
     (define-key map (kbd "z") #'emacs-agents-focus)

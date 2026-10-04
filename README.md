@@ -317,6 +317,7 @@ in slot 0, such as Treemacs. Narrow frames may need smaller pane sizes.
 | `W` | Review and change a stopped agent's worktree/branch association |
 | `TAB` | Expand/collapse sidebar details |
 | `D` | Open the expanded dashboard (sidebar) |
+| `B` | Open the optional agent board |
 | `s` | Return to the sidebar (dashboard) |
 | `z` | Focus conversation / restore layout |
 | `c` | Close the conversation view (sidebar) |
@@ -329,6 +330,29 @@ in slot 0, such as Treemacs. Narrow frames may need smaller pane sizes.
 The dashboard distinguishes process state from activity. `input` means the agent
 is ready for input, not that your task is complete. `pending` identity means no
 backend conversation ID has been captured yet.
+
+### Agent board
+
+Press `B` in the sidebar/dashboard, `SPC o a b` with the Doom example, or run
+`M-x emacs-agents-board`. The board uses the main pane beside the sidebar. Cards
+are grouped by their full folder path, with Working, Waiting, Ready and Stopped
+columns. Approval requests are Waiting; errors appear in Stopped with an explicit
+ERROR label. Starting/unknown agents appear in an additional Other lane.
+
+`f` scopes the view to a folder and its descendants; choose All folders to clear
+it. Names wrap inside cards, unread output has a separate NEW marker, and narrow
+windows stack columns. Navigate with `h/j/k/l`, arrows or `TAB`; `RET` or a click
+opens the conversation without another split. Closing that conversation restores
+the board and selected card. `i` opens diagnostics, `g` refreshes, `n` creates an
+agent, and `q` restores the layout from before the board. Merely navigating cards
+does not launch agents or acknowledge unread output.
+
+The board reflects actual agent states; cards cannot be dragged into a different
+status. It is an optional prototype for comparing the overview with the sidebar,
+not a replacement for the compact view. Sidebar folder headings now have clearer
+weight and separation, details are muted, and unread names retain emphasis.
+Customize `emacs-agents-sidebar-line-spacing` (default `0.12`, `0` for compact)
+to adjust its vertical density.
 
 ## Lifecycle and recovery
 
@@ -374,7 +398,24 @@ the chosen checkout. Open the agent explicitly when ready to resume.
 Backend history can depend on the old working directory. A valid new association
 does not guarantee the provider can load that conversation there. Resume still
 requests the original ID; a refusal never silently creates another conversation.
-Backend history relocation and profile/account recovery remain separate work.
+Backend history relocation is not automated. Profile/account guidance follows.
+
+Diagnostics now includes recovery steps for missing profiles, authentication
+failures, unsupported resume, missing history and unconfirmed terminal startup.
+After repairing the original configuration, press `R` **inside diagnostics**
+(`M-x emacs-agents-retry` elsewhere). Review the profile and saved conversation ID,
+then confirm the retry. `R` still renames agents in the sidebar. Retry requires a
+stopped, active record with a saved conversation and a valid checkout. It checks
+for configuration/record changes during confirmation and submits no prompt.
+
+The registry has no verified record of the original provider account. Recovery
+therefore guides restoration of the original profile identifier and account;
+it does not substitute another profile based on its label or displayed model.
+For terminal profiles, retain the original `CLAUDE_CONFIG_DIR` and authentication
+configuration. For ACP profiles, restore the original agent-shell configuration.
+If the backend cannot resume or the history is gone, explicitly create a separate
+agent with `n`; retain the old record while investigating. Terminal startup without
+SessionStart cannot by itself distinguish login, trust, hooks and missing history.
 
 The implementation stops managed ACP transports when the Emacs process exits
 normally. Closing a client frame while an Emacs daemon stays alive does not stop

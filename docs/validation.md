@@ -1,13 +1,29 @@
 # Prototype validation
 
-Validated locally on 2026-10-01 with Emacs 31.1 (SQLite enabled), the installed agent-shell, and the
+Validated locally on 2026-10-04 with Emacs 31.1 (SQLite enabled), the installed agent-shell, and the
 installed ACP and shell-maker dependencies. The supported minimum Emacs version
 is declared as 29.1; a minimum-version CI run is still needed before release.
 
-All 81 deterministic tests passed (54 registry/UI/archive/diagnostic/recovery tests,
-10 ACP integration tests, 11 EAT integration tests, 4 vterm integration tests,
+All 92 deterministic tests passed (63 registry/UI/archive/diagnostic/recovery/board tests,
+11 ACP integration tests, 12 EAT integration tests, 4 vterm integration tests,
 and 2 transcript tests).
 The suite exercises:
+
+- The board shows every observed state, groups full folder paths, respects
+  descendant boundaries and excludes archived agents. Narrow and wide layouts
+  retain all cards; long names wrap and unread flags survive navigation.
+- Card identity stays selected across state changes and cached reflow. Keyboard
+  navigation, failed opens, conversation return and the preceding editor layout
+  retain their position and drafts. Rendering/navigation starts no agent.
+
+- Explicit saved-ID retry after restoring a missing terminal profile retains the
+  account and conversation, submits no input and makes no replacement launch.
+  ACP authentication failure, unsupported resume and rejected history preserve
+  the saved ID and send no replacement session/new requests.
+- Cancelled retries preserve even a closed registry; missing profiles and missing
+  conversation IDs are rejected. Profile or record changes during confirmation
+  prevent launch. Recovery guidance/copies exclude error and command canaries.
+  Guidance distinguishes known failures from ambiguous missing SessionStart.
 
 - Worktree reassociation and branch acceptance preserve agent/account identity,
   unread/model/folder metadata, prior failures, run history and dirty Git files.
@@ -132,6 +148,19 @@ executable available. No agents were running or launched during that check.
 REC-2 reran all 81 tests and byte compilation with warnings as errors. The new
 `W` recovery flow also passed with Evil enabled. Full real-provider restart and
 relocated-history pilots remain outstanding.
+
+REC-3 reran all 86 tests and byte compilation with warnings as errors on
+2026-10-04. Its diagnostic `R` retry control also passed with Evil enabled.
+Profile reassignment is deliberately unavailable: the current registry contains
+no verified historical account identity. Guidance supports restoring the
+original configuration and explicitly creating a separate agent when necessary;
+these tests do not establish account equivalence for profile substitution.
+
+The 2026-10-04 board prototype passed the complete 92-test suite, all six board
+tests with Evil enabled, and byte compilation with warnings as errors. It was
+loaded into the user's macOS Emacs and rendered against the three existing
+agents without changing records or process counts. Visual density and whether
+the optional board improves daily use remain user-evaluation questions.
 
 The user successfully stopped and resumed a real Claude EAT conversation, with
 the saved ID and on-disk transcript confirmed. A full Emacs restart with the live
