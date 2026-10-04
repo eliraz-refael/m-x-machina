@@ -89,9 +89,13 @@ def main():
         for path in paths:
             base += ["-L", str(path)]
         run(base + ["--eval", "(progn (setq byte-compile-error-on-warn t) "
-                    "(dolist (file (directory-files \"lisp\" t \"\\\\.el\\\\'\")) "
+                    "(dolist (file (directory-files \"lisp\" t \"[.]el$\")) "
                     "(unless (byte-compile-file file) (error \"Compilation failed: %s\" file))))"],
             cwd=checkout, env=env)
+        sources = list((checkout / "lisp").glob("*.el"))
+        if not sources or any(not source.with_suffix(".elc").is_file() for source in sources):
+            raise RuntimeError("Byte compilation did not produce every expected .elc file")
+        print(f"COMPILED {len(sources)} Lisp files", flush=True)
         # Exercise source rather than silently loading the just-compiled files.
         for compiled in (checkout / "lisp").glob("*.elc"):
             compiled.unlink()
