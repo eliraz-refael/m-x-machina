@@ -1,4 +1,4 @@
-# Backlog: from prototype to daily use
+# M-x Machina backlog: from prototype to daily use
 
 Created 2026-10-01. Checked items are implemented; unchecked items are planned.
 Priorities describe sequence, not promised dates. The current
@@ -71,11 +71,16 @@ interruption window. REC-1 through REC-3 are complete.
 
 Goal: make several concurrent agents manageable without inspecting each one.
 
-- [ ] **ATT-1 — Jump to attention.** Next/previous commands for waiting agents and
+- [x] **ATT-1 — Jump to attention.** Next/previous commands for waiting agents and
   unread agents, with waiting-for-input taking priority when combining them.
   **Done when:** navigation is deterministic, collapsed ancestors reveal the
   target, archived agents are excluded, and merely navigating neither launches
   an agent nor acknowledges unread output.
+  **Completed 2026-10-04:** `]` / `[` cycle a waiting-first queue in the sidebar,
+  dashboard and board, with separate waiting-only and unread-only commands.
+  Creation order breaks ties, navigation wraps, sidebar ancestors reveal the
+  target, and the board respects its folder scope. From other buffers the Doom
+  leader commands select the sidebar without replacing the conversation.
 - [ ] **ATT-2 — Sidebar filters.** Search by name/folder/project and filter by
   status or unread state. Keep active filters visible and easy to clear.
   **Done when:** filters preserve selection sensibly across updates; overall
@@ -96,10 +101,16 @@ Goal: make several concurrent agents manageable without inspecting each one.
   predictable default for new entries.
   **Done when:** order survives restart, filtering and collapse/expand, without
   changing the underlying agent identity.
-- [ ] **UX-1 — Discoverable controls.** Add contextual key help, useful empty
+- [x] **UX-1 — Discoverable controls.** Add contextual key help, useful empty
   states, and consistent navigation/focus/close commands across interfaces.
   **Done when:** a new user can create, inspect, resume, archive and restore an
   agent without consulting source code; plain Emacs and Evil both work.
+  **Completed 2026-10-04:** `?` opens a contextual action pane from agent views;
+  `C-c ?` works in conversations, and Doom has `SPC o a ?`. Agent, folder and
+  empty contexts show available actions and explain disabled ones. Targets stay
+  pinned across refreshes, execution rechecks state, destructive prompts remain,
+  and `q` returns to the original view. Six menu tests pass in plain Emacs and
+  Evil, with terminal shortcut and layout checks.
 - [ ] **UX-2 — Change a stopped agent's terminal.** Investigate EAT ↔ vterm
   switching while retaining the same Claude account and UUID. Treat agent-shell
   as a separate compatibility question, not an interchangeable terminal.
@@ -136,11 +147,21 @@ This work can proceed alongside recovery; it gates a stable release.
   **Done when:** a clean checkout can run registry, ACP, EAT, vterm and transcript
   checks without a commercial model or personal configuration; byte compilation
   treats package warnings as errors.
+  **Implemented locally 2026-10-04; hosted verification pending:** `scripts/check`
+  provides isolated compilation/core/full runs with explicit optional-suite skips,
+  pinned dependency downloads and a separate native vterm build. The full 125-test
+  suite passes on local Emacs 31.1, and core checks pass on 30.1 and 31.1.
+  A pinned-action CI matrix covers Linux 29.1/30.2/31.1 and macOS 31.1;
+  keep this gate unchecked until the hosted minimum-version jobs pass.
 - [ ] **REL-2 — Installation and dependency compatibility.** Test a clean plain
   Emacs setup and Doom setup; document native vterm installation and supported
   dependency versions. Check newer agent-shell/Claude versions deliberately.
   **Done when:** setup does not depend on local build paths or account-specific
   configuration, and missing optional packages yield actionable messages.
+  **Partial 2026-10-04:** fresh pinned ACP/EAT/vterm dependencies pass local checks;
+  standalone loading and the optional Doom example have smoke coverage. Corrected
+  the documented agent-shell dependency set to the actual tested 0.83.4/ACP
+  0.15.2/shell-maker 0.97.5. A complete isolated Doom boot remains outstanding.
 - [ ] **REL-3 — Persistence and upgrade checks.** Exercise upgrades from supported
   schemas, backups, registry ownership, interrupted writes and retained history.
   **Done when:** recovery is documented and verified without erasing conversation
@@ -153,8 +174,26 @@ This work can proceed alongside recovery; it gates a stable release.
   installation docs and changelog, and record known limitations.
   **Done when:** recovery and release gates above are met and release/publishing
   is explicitly authorized. No publication is implied by this backlog.
+  **Naming chosen 2026-10-04:** M-x Machina, repository slug `m-x-machina`,
+  CLI and public Emacs entry point `mxm`. Legacy entry points and persistent
+  storage paths remain supported; version/release publication is still pending.
 
-## 5. Optional larger projects — decide separately
+## 5. Explicit agent collaboration
+
+- [x] **MSG-1 — CLI request/reply.** Opt-in local CLI discovery, queued messages,
+  correlated replies, polling/waiting and queued cancellation. Address agents by
+  ID or full folder/name; preserve drafts, permission prompts and unread state.
+  **Completed 2026-10-04:** agent-shell, EAT and vterm pass offline round trips;
+  two fixture agents consult each other through the real CLI. Idempotent request
+  IDs, pending-cycle detection, interrupted-request recovery without replay,
+  bounded content, private storage and retention are implemented. Existing
+  processes can use the CLI explicitly; new processes inherit discovery variables.
+- [ ] **MSG-2 — Real-provider messaging pilot.** Verify Claude EAT/vterm and a
+  real ACP provider with multi-turn work, long replies, human input and permission
+  requests. Evaluate whether conservative visible-pane/draft holds need clearer UI.
+  Autonomous task planning and dispatch remain outside this messaging feature.
+
+## 6. Optional larger projects — decide separately
 
 - **Detached execution:** a process host that can keep agents working while Emacs
   is closed. First design ownership, reattachment, process cleanup and failure
@@ -166,8 +205,8 @@ This work can proceed alongside recovery; it gates a stable release.
   worktrees by default.
 - **PR/CI context:** optional links and status for an agent's branch, after the
   local session lifecycle is dependable.
-- **Agent orchestration:** coordination or automatic dispatch would be a separate
-  product decision; the current manager does not send prompts on its own.
+- **Agent orchestration:** automatic task planning/dispatch remains a separate
+  product decision. MSG-1 routes explicit requests without choosing work for agents.
 
 ## Working practice
 

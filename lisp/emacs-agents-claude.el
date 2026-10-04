@@ -72,12 +72,15 @@
           (when (and (equal kind "SessionStart") (not (emacs-agents-transport-ready transport)))
             (setf (emacs-agents-transport-ready transport) t)
             (setq emacs-agents-claude--turn-active nil emacs-agents-claude--message-seen nil)
-            (funcall callback "live" "input" sid))
+            (funcall callback "live" "input" sid)
+            (run-hook-with-args 'emacs-agents-backend-event-hook transport 'prompt nil))
           (when (emacs-agents-transport-ready transport)
             (pcase kind
               ("UserPromptSubmit"
                (setq emacs-agents-claude--turn-active t emacs-agents-claude--message-seen nil)
-               (funcall callback "live" "working" sid))
+               (funcall callback "live" "working" sid)
+               (run-hook-with-args 'emacs-agents-backend-event-hook transport 'prompt
+                                   (list :hash (alist-get 'prompt_hash event))))
               ("PreToolUse"
                (funcall callback "live"
                         (if (member (alist-get 'tool_name event) '("AskUserQuestion" "ExitPlanMode"))
@@ -101,11 +104,15 @@
                           (not emacs-agents-claude--message-seen)
                           (eq (alist-get 'has_message event) t))
                  (run-hook-with-args 'emacs-agents-backend-event-hook transport 'message nil))
-               (setq emacs-agents-claude--turn-active nil))
+               (setq emacs-agents-claude--turn-active nil)
+               (run-hook-with-args 'emacs-agents-backend-event-hook transport 'turn-ended
+                                   (list :text (alist-get 'reply event) :request (alist-get 'request_id event))))
               ("StopFailure"
                (setq emacs-agents-claude--turn-active nil)
                (funcall callback "live" "input" sid
-                        (format "Claude: %s" (or (alist-get 'error event) "turn failed"))))
+                        (format "Claude: %s" (or (alist-get 'error event) "turn failed")))
+               (run-hook-with-args 'emacs-agents-backend-event-hook transport 'turn-ended
+                                   (list :error (or (alist-get 'error event) "Turn failed"))))
               ("SessionEnd"
                ;; /clear and /resume can end a conversation without exiting the
                ;; process.  Keep observing so a replacement SessionStart fails.

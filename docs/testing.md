@@ -1,0 +1,84 @@
+# Isolated checks and dependency compatibility
+
+The release check is:
+
+```sh
+python3 scripts/check --suite all --fetch-deps --build-vterm
+```
+
+For core development, `python3 scripts/check` needs only Emacs 29.1+ with SQLite,
+Git and Python 3. It includes byte compilation, registry/UI/recovery tests,
+transcripts, message-queue unit tests and standalone installation smoke tests.
+It prints a skip line for each unselected optional suite.
+
+## Dependency setup
+
+`test/dependencies.json` pins the six external Lisp dependencies by full Git SHA.
+The downloader uses separate checkouts under `.cache/test-deps/NAME/SHA`, preserves
+upstream symlinks and checks the revision and tracked-file cleanliness on reuse.
+It refuses stray compiled Lisp files so source and bytecode cannot accidentally
+come from different versions. `--deps-dir PATH` can relocate this test cache.
+The cache is ignored by Git and can be deleted to start fresh.
+
+For the native vterm check install build tools using your usual development
+environment: CMake, a C compiler, Make and GNU libtool. `tic` from ncurses builds
+EAT's terminal definitions. The runner follows [vterm's native build procedure](https://github.com/akermu/emacs-libvterm#manual-installation)
+and chooses its pinned bundled libvterm instead of a system copy. Its first
+native build needs network access; runtime tests use local Python fixtures.
+Existing installed EAT/vterm/agent-shell packages are not used or rebuilt.
+
+Targeted checks include the core suite:
+
+```sh
+python3 scripts/check --suite acp --fetch-deps
+python3 scripts/check --suite eat --fetch-deps
+python3 scripts/check --suite vterm --fetch-deps --build-vterm
+python3 scripts/check --suite all
+python3 scripts/check --emacs /path/to/another/emacs
+```
+
+Missing dependencies, failed downloads, compilation warnings, native module load
+failures and failing tests produce a nonzero exit status. No optional adapter is
+silently omitted from `--suite all`.
+
+## Isolation
+
+Checks run in a disposable copy of the package. They never write compiled Lisp
+into the checkout or install packages into an Emacs profile. A bootstrap loaded
+before the package redirects Emacs state, customization, package storage, native
+compilation output and server paths to a private temporary directory. `-Q`
+skips personal initialization. Fixture Git commands ignore personal Git config.
+The CLI finds the `emacsclient` paired with the selected Emacs binary.
+
+Messaging tests bind a private server name and socket directory and contain all
+server shutdown hooks within the fixture, including socket creation failure.
+The default core suite does not open a server socket. The test runner does not
+change the user's HOME or connect to a running Emacs session.
+
+## CI and what it establishes
+
+`.github/workflows/check.yml` uses pinned action revisions and read-only repository
+permissions. It runs:
+
+| Job | OS | Emacs | Coverage |
+| --- | --- | --- | --- |
+| Core | Linux | 29.1, 30.2, 31.1 | Compile, core, standalone load |
+| Core | macOS | 31.1 | Compile, core, standalone load |
+| Transports | Linux | 29.1, 31.1 | All suites, freshly built vterm, private CLI server |
+
+[setup-emacs](https://github.com/purcell/setup-emacs) supplies the CI Emacs binary.
+The `Required checks` gate succeeds only when all core and transport jobs
+succeed; failed, cancelled or skipped jobs block it.
+These jobs are configured, not evidence of a passing hosted run until the project
+is pushed and the workflow actually runs. Local results live in `validation.md`.
+
+The optional Doom example is smoke-tested in plain Emacs without Doom installed.
+This verifies that optional integrations stay optional; it does **not** establish
+a successful full Doom installation or Evil ergonomics. Those checks and the
+real-provider restart/permission pilot remain release work. No user's running
+Doom is restarted or changed by these checks.
+
+When updating dependencies, edit the pins deliberately, rerun the full suite, and
+record versions and results. Test dependency upgrades in a fresh Emacs: reloading
+only part of agent-shell can leave old callbacks in existing buffers and produce
+misleading permission or busy states.

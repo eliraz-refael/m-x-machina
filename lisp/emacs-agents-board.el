@@ -102,7 +102,7 @@
          (inhibit-read-only t))
     (setq emacs-agents-board--width width emacs-agents-board--positions nil)
     (erase-buffer)
-    (insert (propertize "AGENTS\n" 'face 'emacs-agents-board-heading))
+    (insert (propertize "M-X MACHINA\n" 'face 'emacs-agents-board-heading))
     (dolist (line (emacs-agents-board--wrap
                    (format "%s · %d agents · %d unread"
                            (if (string-empty-p emacs-agents-board--scope) "All folders" emacs-agents-board--scope)
@@ -237,9 +237,11 @@
                        ("<down>" . emacs-agents-board-down) ("<up>" . emacs-agents-board-up)
                        ("<left>" . emacs-agents-board-left) ("<right>" . emacs-agents-board-right)
                        ("TAB" . emacs-agents-board-next) ("RET" . emacs-agents-board-open)
+                       ("]" . emacs-agents-next-attention) ("[" . emacs-agents-previous-attention)
                        ("<mouse-1>" . emacs-agents-board-click)
                        ("f" . emacs-agents-board-scope) ("g" . emacs-agents-refresh)
                        ("n" . emacs-agents-new) ("i" . emacs-agents-details)
+                       ("?" . emacs-agents-actions)
                        ("q" . emacs-agents-board-return)))
       (define-key map (kbd (car binding)) (cdr binding)))
     map))
@@ -247,7 +249,7 @@
 (define-derived-mode emacs-agents-board-mode special-mode "Agent Board"
   "Cards grouped by folder and observed activity. No manual status changes."
   (setq-local truncate-lines t line-spacing 0.12
-              header-line-format " Board · RET open · TAB next · f folder · i details · q return")
+              header-line-format " Board · ? actions · [ ] attention · RET open · f folder · q return")
   (buffer-face-set 'fixed-pitch)
   (add-hook 'post-command-hook #'emacs-agents-board--post-command nil t)
   (add-hook 'window-size-change-functions #'emacs-agents-board--resize nil t))

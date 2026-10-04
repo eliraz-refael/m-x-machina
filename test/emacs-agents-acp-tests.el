@@ -253,3 +253,71 @@
       (with-temp-buffer
         (insert-file-contents (expand-file-name "backend/requests.jsonl" temporary))
         (should-not (string-match-p "session/new\\|session/prompt" (buffer-string)))))))
+
+(ert-deftest emacs-agents-acp-session-title-refresh-and-minimal-resume ()
+  (emacs-agents-test-with-acp
+    (let ((agent-shell-session-restore-verbosity 'minimal))
+      (setq agent-shell-mock-agent-acp-command
+            (append agent-shell-mock-agent-acp-command '("session-metadata")))
+      (let* ((id (emacs-agents-create "Metadata" repo "mock-agent"))
+             (buffer (emacs-agents-start id)))
+        (emacs-agents-test-wait
+         (lambda () (with-current-buffer buffer
+                      (equal (map-nested-elt agent-shell--state '(:session :title)) "Fixture title 0"))))
+        (should (equal (emacs-agents-session-status (emacs-agents-session id)) "live"))
+        (let ((saved (emacs-agents-session-conversation (emacs-agents-session id))))
+          (agent-shell-insert :text "Hello" :submit t :shell-buffer buffer :no-focus t)
+          (emacs-agents-test-wait
+           (lambda () (with-current-buffer buffer
+                        (equal (map-nested-elt agent-shell--state '(:session :title)) "Fixture title 1"))))
+          (should (equal (emacs-agents-session-status (emacs-agents-session id)) "live"))
+          (emacs-agents-stop id)
+          (setq buffer (emacs-agents-start id))
+          (emacs-agents-test-wait
+           (lambda () (with-current-buffer buffer
+                        (equal (map-nested-elt agent-shell--state '(:session :title)) "Fixture title 1"))))
+          (should (equal (emacs-agents-session-status (emacs-agents-session id)) "live"))
+          (should (equal (emacs-agents-session-conversation (emacs-agents-session id)) saved))
+          (with-temp-buffer
+            (insert-file-contents (expand-file-name "backend/requests.jsonl" temporary))
+            (let ((text (buffer-string)))
+              (should (= 1 (how-many "session/new" (point-min) (point-max))))
+              (should (= 1 (how-many "session/prompt" (point-min) (point-max))))
+              (should (string-match-p "session/resume" text))
+              (should (>= (how-many "session/list" (point-min) (point-max)) 3)))))))))
+
+(ert-deftest emacs-agents-acp-listing-after-failed-resume-cannot-replace ()
+  (emacs-agents-test-with-acp
+    (setq agent-shell-mock-agent-acp-command
+          (append agent-shell-mock-agent-acp-command '("session-metadata")))
+    (let* ((agent-shell-session-restore-verbosity 'minimal)
+           (id (emacs-agents-create "Missing metadata history" repo "mock-agent"))
+           (run (emacs-agents--begin-run id)))
+      (emacs-agents--observe id run "stopped" "unknown" "missing-conversation")
+      (emacs-agents-start id)
+      (emacs-agents-test-wait (lambda () (equal (emacs-agents-session-status (emacs-agents-session id)) "failed")))
+      (should (equal (emacs-agents-session-conversation (emacs-agents-session id)) "missing-conversation"))
+      (with-temp-buffer
+        (insert-file-contents (expand-file-name "backend/requests.jsonl" temporary))
+        (should (string-match-p "session/list" (buffer-string)))
+        (should-not (string-match-p "session/new" (buffer-string)))))))
+
+(ert-deftest emacs-agents-acp-stopped-buffer-cannot-respawn-client ()
+  (emacs-agents-test-with-acp
+    (let* ((id (emacs-agents-create "Stopped" repo "mock-agent"))
+           (buffer (emacs-agents-start id)))
+      (emacs-agents-test-wait (lambda () (equal (emacs-agents-session-status (emacs-agents-session id)) "live")))
+      (let* ((client (buffer-local-value 'agent-shell--state buffer))
+             (client (map-elt client :client))
+             (saved (emacs-agents-session-conversation (emacs-agents-session id))))
+        (emacs-agents-stop id)
+        (should-error
+         (acp-send-request :client client :buffer buffer
+                           :request `((:method . "session/prompt")
+                                      (:params . ((sessionId . ,saved) (prompt . []))))))
+        (should-not (map-elt client :process))
+        (should-not (gethash id emacs-agents--running))
+        (should (equal (emacs-agents-session-conversation (emacs-agents-session id)) saved))
+        (emacs-agents-start id)
+        (emacs-agents-test-wait (lambda () (equal (emacs-agents-session-status (emacs-agents-session id)) "live")))
+        (should (equal (emacs-agents-session-conversation (emacs-agents-session id)) saved))))))

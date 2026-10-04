@@ -3,12 +3,19 @@
 ;; Load this file; it resolves the package location relative to itself.
 (add-to-list 'load-path
              (expand-file-name "../lisp" (file-name-directory (or load-file-name buffer-file-name))))
-(require 'emacs-agents)
+(require 'mxm)
 
 (with-eval-after-load 'evil
+  (evil-set-initial-state 'emacs-agents-actions-mode 'motion)
+  (with-eval-after-load 'emacs-agents-actions
+    (dolist (key '("o" "x" "r" "i" "W" "R" "M" "u" "e" "f" "a" "s" "d" "TAB" "n" "N" "B" "D" "A" "]" "[" "RET" "g" "q" "?"))
+      (evil-define-key 'motion emacs-agents-actions-mode-map (kbd key)
+        (lookup-key emacs-agents-actions-mode-map (kbd key))))
+    (evil-define-key 'motion emacs-agents-actions-mode-map
+      (kbd "j") #'next-line (kbd "k") #'previous-line))
   (evil-set-initial-state 'emacs-agents-board-mode 'motion)
   (with-eval-after-load 'emacs-agents-board
-    (dolist (key '("j" "k" "h" "l" "TAB" "RET" "f" "g" "n" "i" "q"))
+    (dolist (key '("j" "k" "h" "l" "TAB" "RET" "f" "g" "n" "i" "q" "]" "[" "?"))
       (evil-define-key 'motion emacs-agents-board-mode-map (kbd key)
         (lookup-key emacs-agents-board-mode-map (kbd key)))))
   (add-hook 'emacs-agents-eat-setup-hook #'emacs-agents-eat-setup-evil)
@@ -20,6 +27,7 @@
       (kbd "g") #'emacs-agents-diagnostics-refresh
       (kbd "W") #'emacs-agents-rebind-worktree
       (kbd "R") #'emacs-agents-retry
+      (kbd "?") #'emacs-agents-actions
       (kbd "w") #'emacs-agents-diagnostics-copy))
   (evil-set-initial-state 'emacs-agents-transcript-mode 'normal)
   (with-eval-after-load 'emacs-agents-transcript
@@ -46,6 +54,8 @@
                      ("m" . emacs-agents-magit) ("i" . emacs-agents-details)
                      ("W" . emacs-agents-rebind-worktree)
                      ("B" . emacs-agents-board)
+                     ("?" . emacs-agents-actions)
+                     ("]" . emacs-agents-next-attention) ("[" . emacs-agents-previous-attention)
                      ("e" . emacs-agents-eshell)
                      ("TAB" . emacs-agents-sidebar-expand) ("z" . emacs-agents-focus)
                      ("D" . emacs-agents-dashboard) ("c" . emacs-agents-close-view)
@@ -61,6 +71,8 @@
                      ("m" . emacs-agents-magit) ("i" . emacs-agents-details)
                      ("W" . emacs-agents-rebind-worktree)
                      ("B" . emacs-agents-board)
+                     ("?" . emacs-agents-actions)
+                     ("]" . emacs-agents-next-attention) ("[" . emacs-agents-previous-attention)
                      ("e" . emacs-agents-eshell)
                      ("z" . emacs-agents-focus) ("s" . emacs-agents)
                      ("q" . quit-window)))
@@ -71,6 +83,9 @@
                         :desc "Agent sidebar" "a" #'emacs-agents
                         :desc "Full dashboard" "d" #'emacs-agents-dashboard
                         :desc "Agent board" "b" #'emacs-agents-board
+                        :desc "Contextual actions" "?" #'emacs-agents-actions
+                        :desc "Next agent needing attention" "]" #'emacs-agents-next-attention
+                        :desc "Previous agent needing attention" "[" #'emacs-agents-previous-attention
                         :desc "Focus / restore layout" "z" #'emacs-agents-focus
                         :desc "Close conversation view" "c" #'emacs-agents-close-view
                         :desc "New session" "n" #'emacs-agents-new))))

@@ -1,11 +1,13 @@
-# emacs-agents
+# M-x Machina
+
+[![Checks](https://github.com/eliraz-refael/m-x-machina/actions/workflows/check.yml/badge.svg)](https://github.com/eliraz-refael/m-x-machina/actions/workflows/check.yml)
 
 Persistent coding-agent sessions for Emacs: a dashboard, a worktree, and the same
 conversation after restarting your editor. Built for the Emacs community, with
 optional Evil and Doom bindings.
 
-**Status: experimental v0.1 prototype.** The name is provisional. This is a
-standalone package, independent of any personal Emacs configuration.
+**Status: experimental v0.1.** A standalone Emacs package with a local CLI,
+`mxm`, for agent discovery and messaging.
 
 See the [prioritized backlog](docs/backlog.md) for the path from this checkpoint
 to dependable daily use, starting with recovery and diagnostics.
@@ -33,14 +35,16 @@ to dependable daily use, starting with recovery and diagnostics.
 
 Adapters support agent-shell's native Emacs UI through ACP, and Claude Code's
 terminal UI through EAT or vterm plus Claude hooks. Detached execution and PR/CI
-integration are future work. The prototype does not coordinate agents or send prompts on its
-own.
+integration are future work. Optional CLI messaging routes explicit requests between
+agents; the manager does not decide which tasks to assign.
 
 ## Requirements
 
 - Emacs 29.1+ built with SQLite (`M-: (sqlite-available-p)`).
-- For ACP profiles: agent-shell 0.75.2+ and its dependencies, tested against 0.75.2;
-  its small compatibility boundary uses agent-shell's internal state.
+- For ACP profiles: the tested dependency set is agent-shell 0.83.4, ACP 0.15.2
+  and shell-maker 0.97.5. Exact test revisions are in
+  [test/dependencies.json](test/dependencies.json). The adapter uses agent-shell's
+  internal state; other versions need compatibility testing.
 - For terminal profiles: EAT or vterm (with its native module), an authenticated
   Claude Code CLI, and Python 3.
   The hook integration targets the installed Claude Code 2.1.278 interface on macOS/Linux.
@@ -51,17 +55,23 @@ own.
 
 ## Load the package
 
+Clone the repository:
+
+```sh
+git clone https://github.com/eliraz-refael/m-x-machina.git
+```
+
 For ordinary Emacs, evaluate:
 
 ```elisp
-(add-to-list 'load-path "/path/to/emacs-agents/lisp")
-(require 'emacs-agents)
+(add-to-list 'load-path "/path/to/m-x-machina/lisp")
+(require 'mxm)
 ```
 
 For Doom, load the example instead (adjust its location):
 
 ```elisp
-(load! "emacs-agents/examples/doom.el")
+(load! "m-x-machina/examples/doom.el")
 ```
 
 The example sets `SPC o a a` for the sidebar, `SPC o a n` for a new session,
@@ -72,6 +82,24 @@ profiles remain available.
 You can evaluate the example temporarily using `M-x load-file`; adding it to
 your configuration makes it available after restart. If your Doom configuration
 is literate, put the load form in its source Org file.
+
+## Commands and compatibility
+
+Use `M-x mxm` to open the sidebar, `M-x mxm-new` to create an agent,
+`M-x mxm-board` for the board, and `M-x mxm-dashboard` for the session table.
+`M-x mxm-messaging-mode` enables the local CLI message service.
+
+The project name is **M-x Machina**, the repository slug is
+`m-x-machina`, and the CLI is `mxm`. Add the checkout's `scripts/` directory to
+PATH to invoke `mxm` directly, or use its full path. No global installation is
+performed by loading the package.
+
+Existing checkouts can keep their `emacs-agents` directory name. Existing
+`emacs-agents-*` commands, settings, Doom bindings, registry location and
+`EMACS_AGENTS_*` environment variables continue to work. `scripts/emacs-agents`
+is a compatibility launcher for `mxm`; both reach the same message service.
+No saved agents or conversation IDs need migration. The configuration examples
+below retain the established customization variable names.
 
 ## Offline demo
 
@@ -306,6 +334,7 @@ in slot 0, such as Treemacs. Narrow frames may need smaller pane sizes.
 
 | Key | Action |
 | --- | --- |
+| `?` | Contextual action menu with availability explanations |
 | `n` | Create a session |
 | `N` | Create a logical folder |
 | `M` | Move the agent to a folder |
@@ -318,6 +347,7 @@ in slot 0, such as Treemacs. Narrow frames may need smaller pane sizes.
 | `TAB` | Expand/collapse sidebar details |
 | `D` | Open the expanded dashboard (sidebar) |
 | `B` | Open the optional agent board |
+| `]` / `[` | Next / previous agent needing attention |
 | `s` | Return to the sidebar (dashboard) |
 | `z` | Focus conversation / restore layout |
 | `c` | Close the conversation view (sidebar) |
@@ -353,6 +383,125 @@ not a replacement for the compact view. Sidebar folder headings now have clearer
 weight and separation, details are muted, and unread names retain emphasis.
 Customize `emacs-agents-sidebar-line-spacing` (default `0.12`, `0` for compact)
 to adjust its vertical density.
+
+### Attention navigation
+
+Use `]` / `[` in the sidebar, dashboard or board to cycle through agents that
+need attention. The queue puts input/approval requests first, then agents with
+unread output. Each group keeps creation order; an agent in both groups appears
+once. Navigation wraps, and when the current agent is outside the queue, either
+direction starts at its highest-priority entry. Idle/ready agents only qualify
+when unread; archived agents are excluded.
+
+Sidebar navigation expands only the target's ancestor folders. Board navigation
+respects its current folder scope (`f` changes scope). Neither starts an agent
+nor marks messages read; `RET` opens the selected conversation. The minibuffer
+shows the queue position and reason for attention. If nothing qualifies, your
+selection stays in place. Resolved requests leave the queue on the next command.
+
+With the Doom example, `SPC o a ]` / `SPC o a [` work from any buffer and select
+the sidebar entry when invoked outside an overview. For a narrower queue, use
+`M-x emacs-agents-next-waiting` / `emacs-agents-previous-waiting` or
+`emacs-agents-next-unread` / `emacs-agents-previous-unread`.
+
+### Contextual actions
+
+Press `?` in the sidebar, dashboard, board or diagnostics, `C-c ?` inside a
+managed conversation, or `SPC o a ?` with the Doom example. A temporary bottom
+pane lists actions for the selected agent, with explanations beside disabled
+choices. On a folder or in an empty view, creation and navigation remain
+available without selecting an agent.
+
+Use the displayed letter, move with arrows or `j/k` and press `RET`, or click
+an enabled action. These are menu-local keys: `o` opens, `r` retries saved history,
+`R` renames, `a` archives and `s` restores. `g` refreshes availability; `q` or `?`
+closes the menu and returns to the originating view. A running agent's archive
+entry says “Stop and archive” and retains its confirmation prompt.
+
+The menu retains the original target if rows move, and rechecks its state before
+executing an action. Opening it neither starts an agent nor acknowledges unread
+output. It uses ordinary Emacs buffers and works with the optional Evil setup.
+
+## Agent-to-agent CLI messaging (experimental)
+
+Enable `M-x mxm-messaging-mode` in the owning Emacs, or add:
+
+```elisp
+(require 'mxm)
+(mxm-messaging-mode 1)
+```
+
+This starts a local Emacs server if needed. Python 3 and `emacsclient` must be on
+PATH. The first version uses a local Unix socket and the same OS user's trust
+boundary as `emacsclient`; sender IDs are attribution, not an authentication
+boundary between agents. It supports agent-shell, EAT and vterm.
+
+From a terminal (adjust the checkout path):
+
+```sh
+/path/to/m-x-machina/scripts/mxm list
+/path/to/m-x-machina/scripts/mxm send 'Work/Wix Panels/Harness' 'Please review the API changes and summarize your findings.' --wait
+/path/to/m-x-machina/scripts/mxm result REQUEST_ID
+/path/to/m-x-machina/scripts/mxm wait REQUEST_ID --timeout 120
+/path/to/m-x-machina/scripts/mxm cancel REQUEST_ID
+```
+
+Use an exact agent ID or a unique full folder/name. `list` and all request results
+are JSON. `send` without `--wait` returns a request ID immediately; `--wait`
+returns the completed text reply to that specific message, not a terminal-screen
+snapshot. Use `-` as the message to read stdin. A wait timeout exits with code 2
+and leaves the request active; failures exit with code 1. Check the printed ID
+before retrying an interrupted CLI call. `--request-id` reuses a retained request
+without sending it twice, and rejects reuse for different content.
+
+Agents started while messaging is enabled inherit `EMACS_AGENTS_ID`,
+`EMACS_AGENTS_CLI` and `EMACS_AGENTS_SOCKET`. Give them this instruction:
+
+> First run `"$EMACS_AGENTS_CLI" whoami` to see your registered ID, full name
+> and working directory. To consult another agent, run `"$EMACS_AGENTS_CLI" list`, then
+> `"$EMACS_AGENTS_CLI" send TARGET_ID "your question" --wait`. Your sender ID is
+> supplied automatically. The JSON response contains the peer's reply. If waiting
+> times out, use `result` or `wait` with the existing request ID; do not resend.
+
+Already-running agents can use the full CLI path for `whoami` and `send`.
+When the ID environment variable is absent, the manager traces the CLI's process
+ancestors to its live managed agent. Identity never depends on matching a working
+directory or guessing a name. No restart or manual `--from` is needed. Supply
+`--socket /path/to/emacs/socket` before the subcommand for a nondefault server.
+Outside a managed process, `whoami` reports that no identity was found; `send`
+uses the user CLI identity unless you explicitly supply `--from SENDER_ID`.
+
+Delivery waits while the recipient is busy, awaiting approval, visible in any
+Emacs window, or holding an unsent draft. Hide its conversation to allow delivery.
+Existing terminal buffers initially have uncertain draft state: submit your draft
+normally, or clear the terminal's prompt and run
+`M-x emacs-agents-messaging-ready` for that agent. This command confirms the prompt
+is empty; it does not erase anything. Terminal navigation can conservatively hold
+further delivery too. Agent-shell checks its actual input buffer. Sending never
+launches stopped agents, answers permission prompts, switches your visible view,
+or acknowledges unread output.
+
+Each recipient processes one queued request at a time. A matching prompt
+acknowledgment is required before collecting its response. agent-shell replies use
+streamed text through turn completion; Claude terminal replies use the Stop hook's
+last assistant message. Tool output is not included. Interrupted turns, identity
+changes, missing acknowledgment, or missing reply text fail explicitly. Pending
+request cycles, including self-messages, are rejected when sender IDs are supplied.
+
+`cancel` affects only queued requests. Once submitted, use the conversation's
+normal interrupt control. Requests expire after 30 minutes; disabling messaging,
+manager shutdown or recovery after a crash ends pending requests without replay.
+The agent may still have performed work after an uncertain delivery: inspect its
+conversation before issuing a new request. Messages are limited to 16 KiB and
+captured replies to 128 KiB.
+
+Requests and replies are stored as private JSON files under the registry's
+`messages/` directory (directory mode 0700, files 0600), separate from backend
+history. Completed records and their idempotency keys expire after seven days
+while messaging runs; customize `emacs-agents-messaging-retention-days` (minimum
+one day). A storage failure disables messaging without stopping healthy agents.
+This has offline integration coverage for all three interfaces; real Claude
+messaging still needs an interactive pilot before stable-release claims.
 
 ## Lifecycle and recovery
 
@@ -427,11 +576,15 @@ After restart, opening the dashboard loads metadata only. Press `RET` to resume
 the same conversation, with the same profile and worktree. Input is never
 automatically replayed: it may already have performed work before a disconnect.
 
-The adapter blocks agent-shell's fallback requests to create or select a different
+The adapter allows read-only session listing, including agent-shell's automatic
+title refresh. It blocks fallback requests to create or select a different
 conversation when restoration fails. The session retains its original ID and
 shows the failure under `i`. Fix the backend/profile/history issue and retry. If
 initialization ended before an ID was captured, automatic retry is blocked;
-inspect the old buffer or deliberately create a new managed session.
+inspect the old buffer or deliberately create a new managed session. A provider
+can also issue an ID before it has saved any conversation history. If it later
+reports `Resource not found` for that ID, retain the failed record and explicitly
+create a fresh agent; the manager does not silently replace its identity.
 
 Changed branches and missing worktrees block launch rather than causing a reset
 or checkout. Restore the recorded worktree/branch first. The prototype does not
@@ -484,38 +637,43 @@ crashes or older versions may be removed manually; they hold no conversation his
 
 ## Development
 
-```sh
-make test
-make check
-make test-integration ACP_LOAD_PATH='-L /path/to/agent-shell -L /path/to/acp -L /path/to/shell-maker'
-make test-eat EAT_LOAD_PATH='-L /path/to/emacs-eat'
-make test-vterm EAT_LOAD_PATH='-L /path/to/emacs-eat' VTERM_LOAD_PATH='-L /path/to/vterm-and-module'
-```
-
-Without `make`, run the corresponding commands directly:
+Run compilation and the core tests without optional packages or downloads:
 
 ```sh
-emacs --batch -Q -L lisp -l test/emacs-agents-archive-tests.el -f ert-run-tests-batch-and-exit
-emacs --batch -Q -L lisp --eval '(setq byte-compile-error-on-warn t)' -f batch-byte-compile lisp/*.el
-emacs --batch -Q -L lisp -L /path/to/agent-shell -L /path/to/acp -L /path/to/shell-maker \
-  -l test/emacs-agents-acp-tests.el -f ert-run-tests-batch-and-exit
-emacs --batch -Q -L lisp -L /path/to/emacs-eat \
-  -l test/emacs-agents-eat-tests.el -l test/emacs-agents-transcript-tests.el -f ert-run-tests-batch-and-exit
-emacs --batch -Q -L lisp -L /path/to/emacs-eat -L /path/to/vterm-and-module \
-  -l test/emacs-agents-vterm-tests.el --eval '(ert-run-tests-batch-and-exit "emacs-agents-vterm-")'
+python3 scripts/check
 ```
 
-Tests use disposable repositories, temporary databases, and a deterministic local
-ACP and terminal subprocesses. EAT tests run the production hook bridge without
-contacting a model. The ACP integration suite tests restoration in two separate Emacs
-processes and prevents conversation replacement on unsupported resume or missing
-history. See [validation](docs/validation.md) for the tested environment and limits.
+For the complete release check, including ACP, EAT, native vterm and the messaging
+CLI, use:
+
+```sh
+python3 scripts/check --suite all --fetch-deps --build-vterm
+```
+
+This downloads exact Git revisions into `.cache/test-deps/` and builds a separate
+vterm module there. It needs Git, Python 3, Emacs with SQLite and dynamic modules,
+CMake, a C compiler, Make, libtool and `tic` (ncurses). After the initial setup,
+`python3 scripts/check --suite all` reuses that cache without fetching dependencies.
+See [the testing guide](docs/testing.md) for targeted checks and CI coverage.
+
+Every run copies the package into a temporary directory, compiles with warnings
+as errors, and tests with `emacs --batch -Q`. Registry files, Emacs state, native
+compilation caches and server sockets are isolated. The runner never loads Doom,
+contacts a real model, or connects to the user's Emacs server. Optional suites
+are explicitly reported as skipped when not selected; selecting a suite with
+missing dependencies fails instead of silently passing.
+
+`make test` and `make check` run the core check; `make test-all` runs the complete
+check. `--emacs /path/to/emacs` selects another Emacs binary. The fixtures exercise
+resume, terminal status and peer messaging without commercial accounts. See
+[validation](docs/validation.md) for results and remaining real-provider checks.
 
 See [the design](docs/design.md) for the broader roadmap.
 
 ## Contributing
 
-Ideas, bug reports, documentation, and patches are welcome. Prefer small changes
+Ideas, bug reports, documentation, and patches are welcome. See
+[CONTRIBUTING.md](CONTRIBUTING.md) for setup and the PR workflow. Prefer small changes
 that make managing sessions more reliable and more natural in Emacs. Describe
 the workflow a change enables and how its behavior can be checked.
 

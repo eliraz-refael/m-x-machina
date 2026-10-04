@@ -1,0 +1,123 @@
+#!/usr/bin/env python3
+# SPDX-License-Identifier: GPL-3.0-or-later
+"""Check a disposable copy of emacs-agents without loading personal Emacs config."""
+import argparse
+import json
+import os
+from pathlib import Path
+import shutil
+import subprocess
+import sys
+import tempfile
+
+ROOT = Path(__file__).resolve().parent.parent
+CORE = ["archive", "diagnostics", "recovery", "board", "attention", "actions",
+        "messaging", "transcript", "install"]
+GROUPS = {"core": [], "acp": ["agent-shell", "acp", "shell-maker"],
+          "eat": ["eat", "compat"], "vterm": ["eat", "compat", "vterm"]}
+GROUPS["all"] = list(dict.fromkeys(sum(GROUPS.values(), [])))
+
+
+def run(command, **kwargs):
+    print("+ " + " ".join(map(str, command)), flush=True)
+    subprocess.run(list(map(str, command)), check=True, timeout=900, **kwargs)
+
+
+def dependencies(names, cache, fetch, build_vterm, env):
+    pins = json.loads((ROOT / "test/dependencies.json").read_text())
+    paths = []
+    for name in names:
+        pin = pins[name]
+        path = cache / name / pin["commit"]
+        if not path.exists():
+            if not fetch:
+                raise RuntimeError(f"Missing {name}: rerun with --fetch-deps (writes only {cache})")
+            path.parent.mkdir(parents=True, exist_ok=True)
+            # A failed download must not masquerade as a usable cached checkout.
+            with tempfile.TemporaryDirectory(dir=path.parent) as temporary:
+                run(["git", "init", "-q", temporary], env=env)
+                run(["git", "-C", temporary, "fetch", "--depth=1", pin["url"], pin["commit"]], env=env)
+                run(["git", "-C", temporary, "checkout", "-q", "--detach", "FETCH_HEAD"], env=env)
+                shutil.copytree(temporary, path, symlinks=True)
+        actual = subprocess.check_output(["git", "-C", str(path), "rev-parse", "HEAD"], env=env, text=True).strip()
+        dirty = subprocess.check_output(["git", "-C", str(path), "diff", "HEAD", "--"], env=env)
+        if actual != pin["commit"] or dirty:
+            raise RuntimeError(f"Dependency checkout changed: {path}; use a fresh --deps-dir")
+        # Always use pinned source, never a leftover compiled Lisp file.
+        for compiled in path.glob("*.elc"):
+            raise RuntimeError(f"Unexpected bytecode in dependency cache: {compiled}")
+        print(f"DEPENDENCY {name} {actual}", flush=True)
+        if name == "eat" and not (path / "terminfo").exists():
+            (path / "terminfo").mkdir()
+            run(["tic", "-x", "-o", path / "terminfo", path / "eat.ti"], env=env)
+        if name == "vterm" and build_vterm:
+            # Upstream pins its bundled libvterm. Avoid the user's installed module.
+            run(["cmake", "-S", path, "-B", path / "build", "-DUSE_SYSTEM_LIBVTERM=OFF"], env=env)
+            run(["cmake", "--build", path / "build", "--parallel", "2"], env=env)
+        paths.append(path)
+    return paths
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--suite", choices=GROUPS, default="core")
+    parser.add_argument("--emacs", default=os.environ.get("EMACS", "emacs"))
+    parser.add_argument("--deps-dir", type=Path, default=ROOT / ".cache/test-deps")
+    parser.add_argument("--fetch-deps", action="store_true")
+    parser.add_argument("--build-vterm", action="store_true")
+    args = parser.parse_args()
+    emacs = shutil.which(args.emacs)
+    if not emacs:
+        raise RuntimeError(f"Emacs executable not found: {args.emacs}")
+    env = {key: value for key, value in os.environ.items()
+           if not key.startswith(("EMACS_AGENTS_", "EMACSLOADPATH", "GIT_"))}
+    env.update(GIT_CONFIG_GLOBAL=os.devnull, GIT_CONFIG_NOSYSTEM="1")
+    # The CLI must use the emacsclient belonging to this Emacs, including in CI.
+    env["PATH"] = str(Path(emacs).parent) + os.pathsep + env.get("PATH", "")
+    paths = dependencies(GROUPS[args.suite], args.deps_dir.resolve(), args.fetch_deps,
+                         args.build_vterm, env)
+    with tempfile.TemporaryDirectory(prefix="emacs-agents-check-") as temporary:
+        sandbox = Path(temporary)
+        checkout = sandbox / "checkout"
+        for folder in ("lisp", "scripts", "test", "examples"):
+            shutil.copytree(ROOT / folder, checkout / folder,
+                            ignore=shutil.ignore_patterns("*.elc", "*.eln", "__pycache__"))
+        env["EMACS_AGENTS_TEST_STATE"] = str(sandbox / "state")
+        env["EMACS_AGENTS_TEST_SUITE"] = args.suite
+        base = [emacs, "--batch", "-Q", "-l", str(checkout / "test/bootstrap.el"),
+                "-L", str(checkout / "lisp")]
+        for path in paths:
+            base += ["-L", str(path)]
+        run(base + ["--eval", "(progn (setq byte-compile-error-on-warn t) "
+                    "(dolist (file (directory-files \"lisp\" t \"\\\\.el\\\\'\")) "
+                    "(unless (byte-compile-file file) (error \"Compilation failed: %s\" file))))"],
+            cwd=checkout, env=env)
+        # Exercise source rather than silently loading the just-compiled files.
+        for compiled in (checkout / "lisp").glob("*.elc"):
+            compiled.unlink()
+        command = base[:]
+        if "vterm" in GROUPS[args.suite]:
+            command += ["--eval", "(unless (require 'vterm-module nil t) (error \"Build the pinned vterm module with --build-vterm\"))"]
+        for group in CORE:
+            if group == "messaging" and args.suite == "all":
+                continue  # The integration suite loads its unit tests itself.
+            command += ["-l", str(checkout / f"test/emacs-agents-{group}-tests.el")]
+        suites = {"acp": ["acp"], "eat": ["eat"], "vterm": ["vterm"],
+                  "all": ["messaging-integration"]}.get(args.suite, [])
+        for group in suites:
+            command += ["-l", str(checkout / f"test/emacs-agents-{group}-tests.el")]
+        for group in ("acp", "eat", "vterm", "messaging-integration"):
+            enabled = args.suite == "all" or group in suites or (args.suite == "vterm" and group == "eat")
+            print(f"{'RUN' if enabled else 'SKIP'} {group}" +
+                  ("" if enabled else " (not selected; use --suite all for the release gate)"), flush=True)
+        command += ["-f", "ert-run-tests-batch-and-exit"]
+        run(command, cwd=checkout, env=env)
+    print(f"PASS: {args.suite}; personal configuration was not loaded.", flush=True)
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except (RuntimeError, OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired) as error:
+        print(f"CHECK FAILED: {error}", file=sys.stderr)
+        sys.exit(1)

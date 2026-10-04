@@ -381,6 +381,8 @@ Explicitly marking an agent read with `emacs-agents-mark-read' bypasses it."
                        ("m" . emacs-agents-magit) ("i" . emacs-agents-details)
                        ("W" . emacs-agents-rebind-worktree)
                        ("B" . emacs-agents-board)
+                       ("?" . emacs-agents-actions)
+                       ("]" . emacs-agents-next-attention) ("[" . emacs-agents-previous-attention)
                        ("e" . emacs-agents-eshell)
                        ("TAB" . emacs-agents-sidebar-expand) ("z" . emacs-agents-focus)
                        ("j" . emacs-agents-sidebar-next) ("k" . emacs-agents-sidebar-previous)
@@ -396,7 +398,7 @@ Explicitly marking an agent read with `emacs-agents-mark-read' bypasses it."
   (setq-local truncate-lines t
               line-spacing emacs-agents-sidebar-line-spacing
               cursor-type 'box
-              header-line-format " Agents · B board · n new"
+              header-line-format " M-x Machina · ? actions · B board"
               emacs-agents--expanded nil
               emacs-agents--collapsed nil)
   (hl-line-mode 1)
@@ -593,6 +595,7 @@ managed conversation; the sidebar and dashboard also bind z."
   (let ((map (make-sparse-keymap)))
     (define-key map (kbd "C-c C-z") #'emacs-agents-focus)
     (define-key map (kbd "C-c C-q") #'emacs-agents-close-view)
+    (define-key map (kbd "C-c ?") #'emacs-agents-actions)
     map))
 
 (define-minor-mode emacs-agents-conversation-mode

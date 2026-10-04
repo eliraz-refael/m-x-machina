@@ -1,0 +1,83 @@
+#!/usr/bin/env python3
+# SPDX-License-Identifier: GPL-3.0-or-later
+"""M-x Machina: message the agents managed by your running Emacs."""
+import argparse
+import base64
+import json
+import os
+import subprocess
+import sys
+import time
+import uuid
+
+
+def rpc(payload, socket=None):
+    encoded = base64.b64encode(json.dumps(payload, ensure_ascii=True).encode()).decode()
+    command = ["emacsclient", "--alternate-editor=false"]
+    if socket:
+        command += ["--socket-name", socket]
+    command += ["--eval", '(emacs-agents-messaging-rpc "' + encoded + '")']
+    result = subprocess.run(command, capture_output=True, text=True, timeout=15)
+    if result.returncode:
+        raise RuntimeError(result.stderr.strip() or "Cannot reach Emacs; enable emacs-agents-messaging-mode there")
+    try:
+        response = json.loads(base64.b64decode(json.loads(result.stdout)))
+    except (ValueError, TypeError) as error:
+        raise RuntimeError("Unexpected Emacs response; enable emacs-agents-messaging-mode") from error
+    if not response.get("ok"):
+        raise RuntimeError(response.get("error", "Request failed"))
+    return response["result"]
+
+
+def main():
+    parser = argparse.ArgumentParser(prog="mxm", description=__doc__)
+    parser.add_argument("--socket", default=os.environ.get("EMACS_AGENTS_SOCKET"))
+    sub = parser.add_subparsers(dest="command", required=True)
+    sub.add_parser("list", help="List active agent IDs, full names and status as JSON")
+    sub.add_parser("whoami", help="Identify this managed agent from its environment or process ancestry")
+    send = sub.add_parser("send", help="Queue a message; delivery waits for a ready agent")
+    send.add_argument("target", help="Exact ID or unique full folder/name")
+    send.add_argument("message", help="Message text, or - to read stdin")
+    send.add_argument("--from", dest="sender", default=os.environ.get("EMACS_AGENTS_ID"))
+    send.add_argument("--request-id", default=None, help="Reuse an ID to retry submission without duplicate delivery")
+    send.add_argument("--wait", action="store_true", help="Wait for this request's reply")
+    send.add_argument("--timeout", type=float, default=300, help="Wait limit in seconds; does not cancel the request")
+    for name in ("result", "wait", "cancel"):
+        cmd = sub.add_parser(name)
+        cmd.add_argument("request")
+        if name == "wait":
+            cmd.add_argument("--timeout", type=float, default=300)
+    args = parser.parse_args()
+    payload = {"command": args.command, "pid": os.getpid()}
+    if args.command == "send":
+        message = sys.stdin.read(16385) if args.message == "-" else args.message
+        payload.update(target=args.target, text=message, sender=args.sender,
+                       request=args.request_id or str(uuid.uuid4()))
+    elif args.command == "whoami":
+        payload["sender"] = os.environ.get("EMACS_AGENTS_ID")
+    elif args.command != "list":
+        payload["request"] = args.request
+    if args.command == "wait":
+        payload["command"] = "result"
+    if args.command == "send":
+        print("Request ID: " + payload["request"], file=sys.stderr)
+    result = rpc(payload, args.socket)
+    if args.command == "wait" or (args.command == "send" and args.wait):
+        deadline = time.monotonic() + max(0, args.timeout)
+        while result["status"] in ("queued", "sending", "working"):
+            if time.monotonic() >= deadline:
+                print(json.dumps(result, ensure_ascii=False))
+                print("Wait timed out; the request remains active. Use result/wait with its ID.", file=sys.stderr)
+                return 2
+            time.sleep(min(0.3, max(0, deadline - time.monotonic())))
+            result = rpc({"command": "result", "request": result["id"]}, args.socket)
+    print(json.dumps(result, ensure_ascii=False))
+    return 1 if isinstance(result, dict) and result.get("status") in ("failed", "cancelled") else 0
+
+
+if __name__ == "__main__":
+    try:
+        sys.exit(main())
+    except (RuntimeError, OSError, subprocess.TimeoutExpired) as error:
+        print(str(error), file=sys.stderr)
+        sys.exit(1)

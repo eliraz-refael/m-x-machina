@@ -98,6 +98,7 @@ to hide vterm.  Existing EAT profile identifiers are never changed."
                        ("<mouse-5>" . emacs-agents-vterm-wheel)
                        ("C-<end>" . emacs-agents-vterm-latest)
                        ("C-c C-b" . emacs-agents-vterm-latest)
+                       ("C-c ?" . emacs-agents-actions)
                        ("C-c C-t" . emacs-agents-transcript)
                        ("C-c C-r" . vterm-copy-mode)
                        ("C-<escape>" . emacs-agents-vterm-send-escape)))

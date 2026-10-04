@@ -113,6 +113,7 @@ resume, settings, or initial-prompt arguments: the adapter owns those."
                        ("C-<home>" . emacs-agents-eat-oldest)
                        ("C-<end>" . emacs-agents-eat-latest)
                        ("C-c C-b" . emacs-agents-eat-latest)
+                       ("C-c ?" . emacs-agents-actions)
                        ("<wheel-up>" . emacs-agents-eat-wheel)
                        ("<wheel-down>" . emacs-agents-eat-wheel)
                        ("<mouse-4>" . emacs-agents-eat-wheel)

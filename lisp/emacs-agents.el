@@ -11,6 +11,9 @@
 (require 'emacs-agents-backend)
 (require 'tabulated-list)
 
+(autoload 'emacs-agents-messaging-mode "emacs-agents-messaging" nil t)
+(declare-function emacs-agents-messaging-environment "emacs-agents-messaging")
+
 (declare-function magit-status "magit-status")
 (declare-function eshell-mode "esh-mode")
 (defvar emacs-agents--running (make-hash-table :test #'equal))
@@ -329,7 +332,10 @@ Never replay input or create a replacement for a saved conversation."
           (user-error "Restore the saved profile: %s" profile))
         (let ((run (emacs-agents--begin-run id)))
           (condition-case err
-              (let* ((transport
+              (let* ((process-environment
+                      (append (when (bound-and-true-p emacs-agents-messaging-mode)
+                                (emacs-agents-messaging-environment id)) process-environment))
+                     (transport
                       (emacs-agents-backend-start
                        profile directory conversation
                        (lambda (status activity &optional sid message)
@@ -390,6 +396,7 @@ Never replay input or create a replacement for a saved conversation."
 (defun emacs-agents-shutdown ()
   "Stop managed transports and close the registry."
   (interactive)
+  (when (bound-and-true-p emacs-agents-messaging-mode) (emacs-agents-messaging-mode -1))
   (let ((emacs-agents--stopping t))
     (dolist (id (hash-table-keys emacs-agents--running)) (emacs-agents-stop id))
     (when emacs-agents--timer (cancel-timer emacs-agents--timer))
@@ -438,6 +445,13 @@ Never replay input or create a replacement for a saved conversation."
 (autoload 'emacs-agents-rebind-worktree "emacs-agents-recovery" nil t)
 (autoload 'emacs-agents-retry "emacs-agents-recovery" nil t)
 (autoload 'emacs-agents-board "emacs-agents-board" nil t)
+(autoload 'emacs-agents-actions "emacs-agents-actions" nil t)
+(autoload 'emacs-agents-next-attention "emacs-agents-attention" nil t)
+(autoload 'emacs-agents-previous-attention "emacs-agents-attention" nil t)
+(autoload 'emacs-agents-next-waiting "emacs-agents-attention" nil t)
+(autoload 'emacs-agents-previous-waiting "emacs-agents-attention" nil t)
+(autoload 'emacs-agents-next-unread "emacs-agents-attention" nil t)
+(autoload 'emacs-agents-previous-unread "emacs-agents-attention" nil t)
 (declare-function emacs-agents-board--refresh "emacs-agents-board")
 
 (defun emacs-agents-details (&optional id)
@@ -484,6 +498,9 @@ Never replay input or create a replacement for a saved conversation."
     (define-key map (kbd "m") #'emacs-agents-magit)
     (define-key map (kbd "i") #'emacs-agents-details)
     (define-key map (kbd "B") #'emacs-agents-board)
+    (define-key map (kbd "?") #'emacs-agents-actions)
+    (define-key map (kbd "]") #'emacs-agents-next-attention)
+    (define-key map (kbd "[") #'emacs-agents-previous-attention)
     (define-key map (kbd "W") #'emacs-agents-rebind-worktree)
     (define-key map (kbd "e") #'emacs-agents-eshell)
     (define-key map (kbd "z") #'emacs-agents-focus)

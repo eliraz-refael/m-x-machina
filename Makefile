@@ -1,21 +1,21 @@
 EMACS ?= emacs
-# Supply -L directories for installed agent-shell, acp, and shell-maker.
-ACP_LOAD_PATH ?=
-EAT_LOAD_PATH ?=
-VTERM_LOAD_PATH ?=
+PYTHON ?= python3
+CHECK_FLAGS ?=
 
-.PHONY: test check test-integration test-eat test-vterm
-test:
-	$(EMACS) --batch -Q -L lisp --eval '(setq load-prefer-newer t)' -l test/emacs-agents-archive-tests.el -l test/emacs-agents-diagnostics-tests.el -l test/emacs-agents-recovery-tests.el -l test/emacs-agents-board-tests.el -f ert-run-tests-batch-and-exit
+.PHONY: test check test-all test-integration test-eat test-vterm test-messaging
+# No downloads or installed adapters needed; compilation is included.
+test check:
+	$(PYTHON) scripts/check --emacs "$(EMACS)" $(CHECK_FLAGS)
 
-check:
-	$(EMACS) --batch -Q -L lisp --eval '(setq byte-compile-error-on-warn t)' -f batch-byte-compile lisp/*.el
+# Full release gate, including a separately built native vterm module.
+test-all test-messaging:
+	$(PYTHON) scripts/check --emacs "$(EMACS)" --suite all --fetch-deps --build-vterm $(CHECK_FLAGS)
 
 test-integration:
-	$(EMACS) --batch -Q -L lisp $(ACP_LOAD_PATH) --eval '(setq load-prefer-newer t)' -l test/emacs-agents-acp-tests.el -f ert-run-tests-batch-and-exit
+	$(PYTHON) scripts/check --emacs "$(EMACS)" --suite acp --fetch-deps $(CHECK_FLAGS)
 
 test-eat:
-	$(EMACS) --batch -Q -L lisp $(EAT_LOAD_PATH) --eval '(setq load-prefer-newer t)' -l test/emacs-agents-eat-tests.el -l test/emacs-agents-transcript-tests.el -f ert-run-tests-batch-and-exit
+	$(PYTHON) scripts/check --emacs "$(EMACS)" --suite eat --fetch-deps $(CHECK_FLAGS)
 
 test-vterm:
-	$(EMACS) --batch -Q -L lisp $(EAT_LOAD_PATH) $(VTERM_LOAD_PATH) --eval '(setq load-prefer-newer t)' -l test/emacs-agents-vterm-tests.el --eval '(ert-run-tests-batch-and-exit "emacs-agents-vterm-")'
+	$(PYTHON) scripts/check --emacs "$(EMACS)" --suite vterm --fetch-deps --build-vterm $(CHECK_FLAGS)

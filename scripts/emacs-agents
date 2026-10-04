@@ -1,0 +1,8 @@
+#!/usr/bin/env python3
+# SPDX-License-Identifier: GPL-3.0-or-later
+"""Compatibility entry point for the M-x Machina CLI (mxm)."""
+from pathlib import Path
+import runpy
+
+if __name__ == "__main__":
+    runpy.run_path(str(Path(__file__).resolve().with_name("mxm")), run_name="__main__")

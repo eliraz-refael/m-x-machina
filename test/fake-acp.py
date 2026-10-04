@@ -3,6 +3,7 @@
 Not a coding agent. Uses only Python's standard library and local files.
 """
 import json
+import os
 from pathlib import Path
 import sys
 import uuid
@@ -12,6 +13,9 @@ import select
 
 storage = Path(sys.argv[1])
 storage.mkdir(parents=True, exist_ok=True)
+(storage / f"environment-{os.getpid()}.log").write_text(json.dumps({
+    key: os.environ.get(key) for key in
+    ("EMACS_AGENTS_ID", "EMACS_AGENTS_CLI", "EMACS_AGENTS_SOCKET", "CLAUDE_CONFIG_DIR")}))
 mode = sys.argv[2] if len(sys.argv) > 2 else "normal"
 model_info = {"currentModelId": "offline-fixture", "availableModels": [
     {"modelId": "offline-fixture", "name": "Offline fixture", "description": "Local deterministic demo"}]}
@@ -57,17 +61,26 @@ def respond(request):
         if mode == "authentication-failure":
             raise PermissionError("Authentication required: sign in to the original account")
         return {"protocolVersion": 1,
-                "agentCapabilities": {"loadSession": mode != "unsupported"},
+                "agentCapabilities": {"loadSession": mode != "unsupported",
+                                      "sessionCapabilities": {"list": {}, "resume": {}} if mode == "session-metadata" else {}},
                 "authMethods": []}
     if method == "session/new":
         sid = uuid.uuid4().hex
         (storage / f"{sid}.json").write_text(json.dumps({"cwd": params["cwd"], "turns": 0}))
         return {"sessionId": sid, "models": model_info}
-    if method == "session/load":
+    if method == "session/list":
+        sessions = []
+        for file in storage.glob("*.json"):
+            data = json.loads(file.read_text())
+            if not params.get("cwd") or data["cwd"] == params["cwd"]:
+                sessions.append({"sessionId": file.stem, "cwd": data["cwd"],
+                                 "title": "Fixture title " + str(data["turns"])})
+        return {"sessions": sessions}
+    if method in ("session/load", "session/resume"):
         data = json.loads((storage / f"{params['sessionId']}.json").read_text())
         if data["cwd"] != params["cwd"]:
             raise ValueError("Wrong worktree for this conversation")
-        if data["turns"]:
+        if data["turns"] and method == "session/load":
             emit_text(params["sessionId"], f"Restored history: {data['turns']} previous turns.")
         return {"models": model_info}
     if method == "session/prompt":

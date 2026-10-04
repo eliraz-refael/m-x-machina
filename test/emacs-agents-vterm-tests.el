@@ -18,6 +18,11 @@
       (should (derived-mode-p 'vterm-mode))
       (should (equal (emacs-agents-session-model (emacs-agents-session id)) "offline-terminal-model"))
       (should (eq (key-binding (kbd "C-c C-t")) #'emacs-agents-transcript))
+      (should (eq (key-binding (kbd "C-c ?")) #'emacs-agents-actions))
+      (emacs-agents-actions)
+      (emacs-agents-actions-close)
+      (should (eq (window-buffer) buffer))
+      (should (process-live-p (get-buffer-process buffer)))
       (should-not (kill-buffer buffer))
       (process-send-string (get-buffer-process buffer) "/ask\n")
       (emacs-agents-eat-test-wait

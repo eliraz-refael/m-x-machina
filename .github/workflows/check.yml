@@ -1,0 +1,72 @@
+name: Checks
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: checks-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  core:
+    name: Core / ${{ matrix.os }} / Emacs ${{ matrix.emacs }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {os: ubuntu-latest, emacs: '29.1'}
+          - {os: ubuntu-latest, emacs: '30.2'}
+          - {os: ubuntu-latest, emacs: '31.1'}
+          - {os: macos-latest, emacs: '31.1'}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+      - uses: purcell/setup-emacs@34c6ded44899fd1bf74d2889558befd1750e61a7
+        with:
+          version: ${{ matrix.emacs }}
+      - run: python3 scripts/check
+  transports:
+    name: All transports / Linux / Emacs ${{ matrix.emacs }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        emacs: ['29.1', '31.1']
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+      - uses: purcell/setup-emacs@34c6ded44899fd1bf74d2889558befd1750e61a7
+        with:
+          version: ${{ matrix.emacs }}
+      - name: Install native build tools
+        run: sudo apt-get update && sudo apt-get install -y cmake libtool-bin build-essential ncurses-bin
+      - name: Compile and test every adapter with offline agents
+        run: python3 scripts/check --suite all --fetch-deps --build-vterm
+  required:
+    name: Required checks
+    if: ${{ always() }}
+    needs: [core, transports]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every test job to succeed
+        env:
+          RESULTS: ${{ toJSON(needs) }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          import sys
+          results = json.loads(os.environ["RESULTS"])
+          failed = {name: job["result"] for name, job in results.items()
+                    if job["result"] != "success"}
+          if failed:
+              print(f"Required jobs did not succeed: {failed}")
+              sys.exit(1)
+          print("All required jobs passed")
+          PY

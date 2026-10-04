@@ -46,10 +46,10 @@ def hook(name, **fields):
                 raise RuntimeError("Hook must succeed without modifying Claude output: " + result.stderr)
 
 
-def reply():
+def reply(text=None):
     global turns
     turns += 1
-    text = f"Terminal reply {turns}"
+    text = text or f"Terminal reply {turns}"
     save()
     hook("MessageDisplay", delta=text, index=0, final=True)
     print(f"\033[32m{text}\033[0m", flush=True)
@@ -137,6 +137,22 @@ for line in sys.stdin:
         hook("PreToolUse", tool_name="Bash")
         hook("PermissionRequest", tool_name="Bash")
         print("Approve? Type /approve", flush=True)
+        continue
+    if line.startswith(("/peer ", "/peer-no-identity ")):
+        environment = os.environ.copy()
+        if line.startswith("/peer-no-identity "):
+            environment.pop("EMACS_AGENTS_ID", None)
+        identity = subprocess.run([os.environ["EMACS_AGENTS_CLI"], "whoami"],
+                                  env=environment, capture_output=True, text=True, timeout=10)
+        if identity.returncode:
+            raise RuntimeError(identity.stderr)
+        print("Identity: " + json.loads(identity.stdout)["id"], flush=True)
+        result = subprocess.run([os.environ["EMACS_AGENTS_CLI"], "send", line.split(" ", 1)[1],
+                                 "Please answer your peer", "--wait", "--timeout", "8"],
+                                env=environment, capture_output=True, text=True, timeout=10)
+        if result.returncode:
+            raise RuntimeError(result.stderr + result.stdout)
+        reply("Peer replied: " + json.loads(result.stdout)["response"])
         continue
     if line.startswith("/work"):
         time.sleep(float(line.split()[1]) if len(line.split()) > 1 else 1)

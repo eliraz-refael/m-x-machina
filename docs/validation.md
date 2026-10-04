@@ -4,10 +4,63 @@ Validated locally on 2026-10-04 with Emacs 31.1 (SQLite enabled), the installed 
 installed ACP and shell-maker dependencies. The supported minimum Emacs version
 is declared as 29.1; a minimum-version CI run is still needed before release.
 
-All 92 deterministic tests passed (63 registry/UI/archive/diagnostic/recovery/board tests,
-11 ACP integration tests, 12 EAT integration tests, 4 vterm integration tests,
-and 2 transcript tests).
+All 127 deterministic tests passed (78 registry/UI/archive/diagnostic/recovery/board/attention/action/install tests,
+14 ACP integration tests, 12 EAT integration tests, 4 vterm integration tests,
+2 transcript tests, and 17 messaging tests).
+The release runner (`python3 scripts/check --suite all --fetch-deps --build-vterm`)
+now passes all 127 tests from a disposable checkout with fresh pinned dependencies
+and a separately compiled vterm module. Core compilation and all 87 core tests
+pass on Emacs 30.1; the full suite passes on 31.1. Installation smoke checks exercise
+plain Emacs and loading the optional Doom example without Doom installed.
+This is not a complete Doom boot test. The GitHub Actions matrix is configured
+for Linux 29.1/30.2/31.1 and macOS 31.1, including full Linux transport jobs, but
+has not run on a hosted runner yet. Minimum-version and Linux results remain
+unverified. No personal configuration, installed package or live Emacs session
+was changed during these checks. See [testing](testing.md) for reproduction.
+
 The suite exercises:
+
+- CLI `whoami` and automatic sender discovery for existing agent processes without
+  an inherited ID. A real fixture agent identifies itself and exchanges a message
+  through the CLI in both cases. Unknown identity fails explicitly; directory
+  sharing, stopped transports and cyclic process metadata cannot misidentify it.
+- ACP asynchronous startup retains each agent's own messaging environment while
+  preserving its account configuration; two concurrent agents are verified using
+  their actual subprocess environments, and the shared profile remains unchanged.
+
+- ACP session listing for title metadata is allowed before/after readiness and
+  after turns. Minimal resume retains the original ID; listing after a failed
+  resume cannot permit replacement creation. Stopped managed buffers reject
+  requests before ACP can auto-start an untracked client.
+
+- Messaging across real agent-shell/ACP, EAT and native vterm transports, plus
+  local Emacs socket/CLI JSON round trips and a fixture agent consulting another
+  fixture agent with inherited sender identity. Unicode and quoted messages work.
+- Busy/approval/visible/draft delivery holds, delayed prompt acknowledgments
+  retaining newly typed drafts, and replies staying unread in the UI.
+- Correlation rejects mismatched prompts and old runs; explicit request IDs are
+  idempotent, pending request cycles are rejected, cancellation affects queued
+  requests only, and interrupted requests are never replayed after restart.
+- Private message-file permissions, retention of pending records while completed
+  records expire, and mailbox write errors disabling messaging without failing a
+  healthy backend transport. No real-provider prompt was sent in these checks.
+
+- Contextual actions retain the original target across cursor movement, explain
+  disabled actions and revalidate changed/removed records. Archive/delete
+  cancellation preserves processes and records. Empty/folder contexts work
+  without registry writes, and menu dismissal restores the original layout.
+- Menu key dispatch works with plain Emacs and Evil; board opening retains its
+  return path. EAT/vterm expose `C-c ?`, and opening/dismissing the menu preserves
+  a running vterm conversation.
+
+- Attention navigation prioritizes input/approval requests over unread-only
+  agents, preserves creation order, deduplicates and wraps. Idle agents without
+  unread output and archived agents are excluded. Separate waiting/unread queues
+  work in both directions.
+- Sidebar ancestor expansion respects prefix siblings; scoped boards retain their
+  filter and select cards without opening them. Resolved requests disappear from
+  the queue. Empty queues preserve selection. Dashboard and conversation entry
+  points retain drafts, process counts and unread records.
 
 - The board shows every observed state, groups full folder paths, respects
   descendant boundaries and excludes archived agents. Narrow and wide layouts
@@ -162,6 +215,21 @@ loaded into the user's macOS Emacs and rendered against the three existing
 agents without changing records or process counts. Visual density and whether
 the optional board improves daily use remain user-evaluation questions.
 
+ATT-1 passed the complete 97-test suite, all five attention tests with Evil
+enabled, and byte compilation with warnings as errors on 2026-10-04.
+
+UX-1 passed the complete 103-test suite, all six action-menu tests plus the EAT
+layout and vterm lifecycle tests with Evil enabled, and byte compilation with
+warnings as errors on 2026-10-04.
+
+MSG-1 passed the complete 115-test suite, all 12 messaging checks with Evil
+enabled, and byte compilation with warnings as errors on 2026-10-04. The CLI tests use a
+private temporary Unix socket and offline fixtures. Server lifecycle hooks are
+scoped to each fixture, including failed socket startup; a regression test checks
+that no shutdown hook escapes to the test process's default server configuration. Real Claude message delivery,
+Stop-hook reply capture and prompt preservation still need an interactive pilot;
+fixture results do not establish compatibility with every provider version.
+
 The user successfully stopped and resumed a real Claude EAT conversation, with
 the saved ID and on-disk transcript confirmed. A full Emacs restart with the live
 provider has not been performed during validation.
@@ -177,3 +245,19 @@ Byte compilation runs with warnings treated as errors. Earlier validation found
 the local macOS `make` launcher unavailable because of an unaccepted Xcode license;
 the equivalent Emacs commands were executed directly for this checkpoint without
 changing system configuration.
+
+The 2026-10-04 Claude ACP fix passed all 119 tests, the three new ACP integration
+checks with Evil, and byte compilation with warnings as errors. A real
+`claude-code-work` startup reached ready with no prompt sent; its temporary
+transport was then stopped. An existing failed session returned backend code
+-32002 (`Resource not found`) for its original ID. No replacement was created
+for that record. Startup success does not establish a completed real-provider
+prompt or restart/resume round trip.
+
+The M-x Machina naming pass retains registry paths, existing Emacs commands and
+CLI environment variables. `mxm` opens the same saved registry, and the old
+`scripts/emacs-agents` launcher delegates to `scripts/mxm` without losing process
+ancestry. The full 127-test suite includes a peer exchange through that legacy
+launcher with no inherited sender ID, plus saved-registry reuse through `M-x mxm`.
+Compilation with warnings as errors and all 87 core tests also pass on Emacs 30.1.
+No personal Doom configuration, installed packages or live sessions were changed.

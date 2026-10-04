@@ -1,7 +1,7 @@
 ;;; emacs-agents-agent-shell.el --- Structured interactive adapter -*- lexical-binding: t; -*-
 ;; SPDX-License-Identifier: GPL-3.0-or-later
 ;;; Commentary:
-;; agent-shell 0.75.2 compatibility boundary.  Guard all conversation creation
+;; agent-shell 0.83.4 compatibility boundary.  Guard all conversation creation
 ;; and restoration requests: upstream can otherwise fall back to new sessions.
 ;;; Code:
 (require 'cl-lib)
@@ -15,6 +15,7 @@
 (defvar agent-shell-agent-configs)
 (defvar agent-shell-session-strategy)
 (defvar agent-shell--state)
+(defvar-local emacs-agents-agent-shell--transport nil)
 (declare-function agent-shell-start "agent-shell")
 (declare-function agent-shell-subscribe-to "agent-shell")
 (declare-function agent-shell-status "agent-shell")
@@ -37,6 +38,18 @@
   (advice-add 'agent-shell--update-header-and-mode-line :after
               #'emacs-agents--retain-conversation-header))
 
+(defun emacs-agents-agent-shell--guard-send (&rest args)
+  "Validate managed requests in ARGS before ACP can auto-start a client."
+  (let* ((client (plist-get args :client))
+         (buffer (map-elt client :context-buffer))
+         (transport (and (buffer-live-p buffer)
+                         (buffer-local-value 'emacs-agents-agent-shell--transport buffer))))
+    (when transport
+      (emacs-agents--guard-request transport (plist-get args :request)))))
+
+(with-eval-after-load 'acp
+  (advice-add 'acp-send-request :before #'emacs-agents-agent-shell--guard-send))
+
 (defun emacs-agents-agent-shell-configs ()
   "Resolve configured agent-shell profiles without launching agents."
   (when (require 'agent-shell nil t)
@@ -56,25 +69,28 @@
   (setf (emacs-agents-transport-stopping transport) t)
   (when (buffer-live-p (emacs-agents-transport-buffer transport))
     (with-current-buffer (emacs-agents-transport-buffer transport)
+      (setq emacs-agents-agent-shell--transport transport)
       (when-let* ((client (map-elt agent-shell--state :client)))
         (ignore-errors (agent-shell-interrupt t))
         (acp-shutdown :client client)))))
 
 (defun emacs-agents--guard-request (transport request)
-  "Check REQUEST against TRANSPORT's fixed conversation identity."
+  "Check REQUEST against TRANSPORT's fixed conversation identity.
+Read-only session/list requests also refresh titles during initialization;
+listing does not change identity.  Guard the subsequent load/new/fork instead."
   (when (emacs-agents-transport-stopping transport)
-    (user-error "This run is stopped; resume it from the Emacs Agents dashboard"))
+    (user-error "This run is stopped; resume it from the M-x Machina dashboard"))
   (let* ((method (map-elt request :method))
          (expected (emacs-agents-transport-conversation transport))
          (requested (map-nested-elt request '(:params sessionId))))
     (when (or (emacs-agents-transport-failed transport)
-              (and expected (member method '("session/new" "session/list" "session/fork")))
+              (and expected (member method '("session/new" "session/fork")))
               (and (member method '("session/load" "session/resume" "session/prompt"))
                    (not (equal expected requested))))
       (let* ((state (when (buffer-live-p (emacs-agents-transport-buffer transport))
                       (with-current-buffer (emacs-agents-transport-buffer transport)
                         (bound-and-true-p agent-shell--state))))
-             (fallback (and expected (member method '("session/new" "session/list" "session/fork"))
+             (fallback (and expected (member method '("session/new" "session/fork"))
                             (not (emacs-agents-transport-ready transport))))
              (message
               (cond
@@ -133,12 +149,28 @@
              (not (emacs-agents-transport-stopping transport))
              (not (emacs-agents-transport-failed transport)))
     (pcase (map-elt event :event)
+      ('input-submitted
+       (run-hook-with-args 'emacs-agents-backend-event-hook transport 'prompt
+                           (list :hash (secure-hash 'sha256 (encode-coding-string
+                                        (or (map-nested-elt event '(:data :prompt)) "") 'utf-8-unix)))))
+      ('turn-complete
+       (run-hook-with-args 'emacs-agents-backend-event-hook transport 'turn-ended
+                           (when-let* ((reason (map-nested-elt event '(:data :stop-reason))))
+                             (unless (equal reason "end_turn") (list :error (format "Turn ended: %s" reason))))))
+      ('error
+       (run-hook-with-args 'emacs-agents-backend-event-hook transport 'turn-ended
+                           (list :error (or (map-nested-elt event '(:data :message)) "Agent turn failed"))))
       ('agent-message-chunk
        (when (map-nested-elt event '(:data :text-chunk))
-         (run-hook-with-args 'emacs-agents-backend-event-hook transport 'message nil)))
-      ((or 'init-finished 'init-model 'config-option-update 'input-submitted 'turn-complete)
+         (run-hook-with-args 'emacs-agents-backend-event-hook transport 'message nil)
+         (run-hook-with-args 'emacs-agents-backend-event-hook transport 'reply-chunk
+                             (map-nested-elt event '(:data :text-chunk)))))
+      ((or 'init-finished 'init-model 'config-option-update)
        (run-hook-with-args 'emacs-agents-backend-event-hook transport 'metadata
-                           (emacs-agents-backend-metadata transport))))))
+                           (emacs-agents-backend-metadata transport))))
+    (when (memq (map-elt event :event) '(input-submitted turn-complete))
+      (run-hook-with-args 'emacs-agents-backend-event-hook transport 'metadata
+                          (emacs-agents-backend-metadata transport)))))
 
 (defun emacs-agents-agent-shell-start (profile directory conversation callback)
   "Start PROFILE in DIRECTORY, restoring CONVERSATION when supplied.
@@ -150,12 +182,29 @@ Report normalized observations to CALLBACK.  Return a transport object."
          (default-directory directory)
          (agent-shell-session-strategy 'new))
     (unless config (user-error "Agent profile %s is unavailable" profile))
+    ;; ACP creates its client asynchronously, after the launch environment's
+    ;; dynamic binding has ended.  Capture discovery variables per run without
+    ;; replacing the profile's account environment or mutating its config.
+    (let ((environment (seq-filter
+                        (lambda (value) (string-prefix-p "EMACS_AGENTS_" value))
+                        process-environment))
+          (maker (map-elt config :client-maker)))
+      (setq config (copy-tree config))
+      (setf (map-elt config :client-maker)
+            (lambda (buffer)
+              (let ((client (funcall maker buffer)))
+                (when client
+                  (setf (map-elt client :environment-variables)
+                        (append environment (map-elt client :environment-variables))))
+                client))))
     (setf (emacs-agents-transport-buffer transport)
           (save-window-excursion
             (agent-shell-start
              :config config :session-id conversation
              :outgoing-request-decorator
              (lambda (request) (emacs-agents--guard-request transport request)))))
+    (with-current-buffer (emacs-agents-transport-buffer transport)
+      (setq emacs-agents-agent-shell--transport transport))
     (agent-shell-subscribe-to
      :shell-buffer (emacs-agents-transport-buffer transport)
      :on-event (lambda (event) (emacs-agents--transport-event transport event)))

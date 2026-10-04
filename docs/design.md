@@ -1,4 +1,4 @@
-# Session management design
+# M-x Machina: session management design
 
 This document records the intended full design. The README describes the current
 v0.1 implementation: an SQLite registry, existing or newly created worktrees,

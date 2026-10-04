@@ -12,7 +12,9 @@
   "Optional buffer-local function returning the latest visible output position.")
 (defvar emacs-agents-backend-event-hook nil
   "Functions receiving TRANSPORT, normalized event KIND, and DATA.
-Kinds are `message' (new assistant output) and `metadata' (model information).
+Kinds include `message' (new output), `metadata' (model information),
+`prompt' (:hash), `reply-chunk' (text), and `turn-ended' (:text/:error).
+Text capture for Claude terminal replies is enabled only by a request marker.
 Adapters must suppress transcript replay and events from stopped transports.")
 
 (provide 'emacs-agents-transport)

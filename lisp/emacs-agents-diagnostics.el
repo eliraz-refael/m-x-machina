@@ -274,6 +274,7 @@ Each row is (LABEL SEVERITY DETAIL).  Do not launch or poll anything."
     (define-key map (kbd "R") #'emacs-agents-retry)
     (define-key map (kbd "W") #'emacs-agents-rebind-worktree)
     (define-key map (kbd "q") #'emacs-agents-diagnostics-return)
+    (define-key map (kbd "?") #'emacs-agents-actions)
     map))
 (define-derived-mode emacs-agents-diagnostics-mode special-mode "Agent Diagnostics"
   "A read-only local snapshot of agent readiness and runtime health."

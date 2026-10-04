@@ -36,7 +36,7 @@
        (set-frame-parameter nil 'emacs-agents-conversation-layout nil)
        (dolist (buffer (buffer-list))
          (when (or (member (buffer-name buffer) '("*Emacs Agents*" "*Agent Overview*" "*Archived Agents*"))
-                   (memq (buffer-local-value 'major-mode buffer) '(emacs-agents-diagnostics-mode emacs-agents-board-mode))
+                   (memq (buffer-local-value 'major-mode buffer) '(emacs-agents-diagnostics-mode emacs-agents-board-mode emacs-agents-actions-mode))
                    (buffer-local-value 'emacs-agents--managed-id buffer))
            (with-current-buffer buffer (set-buffer-modified-p nil))
            (let ((kill-buffer-query-functions nil)) (kill-buffer buffer))))
@@ -218,8 +218,10 @@
 
 (ert-deftest emacs-agents-guard-rejects-fallback-and-wrong-conversations ()
   (dolist (request '(((:method . "session/new"))
-                     ((:method . "session/list"))
-                     ((:method . "session/load") (:params . ((sessionId . "wrong"))))))
+                     ((:method . "session/fork") (:params . ((sessionId . "original"))))
+                     ((:method . "session/load") (:params . ((sessionId . "wrong"))))
+                     ((:method . "session/resume") (:params . ((sessionId . "wrong"))))
+                     ((:method . "session/prompt") (:params . ((sessionId . "wrong"))))))
     (let* (failure
            (transport (emacs-agents--transport-create
                        :conversation "original"
@@ -231,6 +233,14 @@
   (let* ((transport (emacs-agents--transport-create :conversation "saved"))
          (request '((:method . "session/load") (:params . ((sessionId . "saved"))))))
     (should (eq request (emacs-agents--guard-request transport request)))))
+
+(ert-deftest emacs-agents-guard-allows-metadata-list-before-and-after-ready ()
+  (dolist (ready '(nil t))
+    (let* ((transport (emacs-agents--transport-create :conversation "saved" :ready ready))
+           (request '((:method . "session/list") (:params . ((cwd . "/fixture"))))))
+      (should (eq request (emacs-agents--guard-request transport request)))
+      (should-not (emacs-agents-transport-failed transport))
+      (should (equal (emacs-agents-transport-conversation transport) "saved")))))
 
 (ert-deftest emacs-agents-refuses-newer-schema ()
   (emacs-agents-test-with-store
