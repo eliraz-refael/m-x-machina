@@ -96,12 +96,25 @@ The project name is **M-x Machina**, the Emacs package and command prefix are
 Add the checkout's `scripts/` directory to PATH to invoke `mxm` directly, or use its full path. No global installation is
 performed by loading the package.
 
-Existing checkouts can keep their `emacs-agents` directory name. Existing
-`emacs-agents-*` commands, earlier `mxm` Emacs entry points, settings, Doom
-bindings, registry location and `EMACS_AGENTS_*` environment variables continue to work. `scripts/emacs-agents`
-is a compatibility launcher for `mxm`; both reach the same message service.
-No saved agents or conversation IDs need migration. The configuration examples
-below retain the established customization variable names.
+All Lisp files, features, commands, settings, faces and hooks use `mx-machina`.
+The previous `emacs-agents-*` and `mxm` Lisp entry points have been removed,
+including `mxm.el`. When updating an existing installation:
+
+1. Replace `emacs-agents` with `mx-machina` in Lisp symbol names and `require`
+   forms in your configuration (including Custom settings). Replace old `mxm`
+   commands with their `mx-machina` equivalents.
+2. Remove stale package bytecode/autoloads through your package manager's rebuild
+   procedure, then restart Emacs. Avoid loading both versions in one Emacs.
+3. Keep your registry directory and profile IDs unchanged. The default remains
+   `emacs-agents/` under `user-emacs-directory`; no saved agents or conversation
+   IDs need migration. If you customized the location, rename the setting to
+   `mx-machina-directory` while retaining its value.
+
+The checkout directory itself can still be called `emacs-agents`; load paths
+pointing into that checkout do not need changing. The CLI remains `mxm` and
+`EMACS_AGENTS_*` environment variables stay compatible with running agents.
+`scripts/emacs-agents` remains a CLI compatibility launcher. Both launchers can
+also reach the pre-rename message service until you restart Emacs.
 
 ## Offline demo
 
@@ -156,7 +169,7 @@ original profile; create a new session to try a different backend.
 For separate accounts, set profiles with distinct identifiers and explicit environments:
 
 ```elisp
-(setq emacs-agents-eat-profiles
+(setq mx-machina-eat-profiles
       `(((:identifier . claude-eat-work)
          (:command . ("claude"))
          (:environment . (,(concat "CLAUDE_CONFIG_DIR="
@@ -185,7 +198,7 @@ profiles retain their IDs and conversation identity. Optional `:agent` and
 `:account` labels group profiles in the picker; for example, add
 `(:agent . "Claude") (:account . "work")` to the EAT and agent-shell account
 profiles. Vterm inherits EAT commands and environments by default, with `-vterm`
-appended to its profile IDs. Customize `emacs-agents-vterm-profiles` to provide
+appended to its profile IDs. Customize `mx-machina-vterm-profiles` to provide
 separate profiles, or set it to nil to hide vterm. Its native module must be
 installed before launching a vterm agent.
 
@@ -212,7 +225,7 @@ The terminal mode line says `History:C-c C-b` while browsing fullscreen history.
 Use `C-c C-b` to resume automatic read acknowledgment: a visible prompt alone
 cannot tell us whether Claude is displaying its latest message. Ordinary EAT
 scrollback retains 8 MiB of characters per agent by default; customize
-`emacs-agents-eat-scrollback-size` for a different limit (`nil` means unlimited).
+`mx-machina-eat-scrollback-size` for a different limit (`nil` means unlimited).
 Claude's alternate-screen history is managed by Claude and does not use that limit.
 
 Evil normal/visual states use EAT's Emacs navigation mode; insert state returns to
@@ -253,7 +266,7 @@ reserve room for names. Logical folder nesting remains unlimited.
 Status colors use customizable Emacs faces: blue for working, green for ready,
 amber for confirmed input/approval requests, red for errors, and muted text for
 stopped/unknown. A small spinner runs beside working agents; set
-`emacs-agents-animate` to nil to disable it. Text labels remain available under TAB
+`mx-machina-animate` to nil to disable it. Text labels remain available under TAB
 and in conversation headers. The current line is highlighted for keyboard navigation.
 
 Purple `*` and the agent name indicate unseen assistant output independently
@@ -261,7 +274,7 @@ of activity. A ready agent may still have an unread reply. The marker is saved
 in SQLite and survives restart. It clears after **5 continuous seconds** with the
 conversation selected in an active frame and its latest output visible. Switching
 agents, scrolling away, losing focus, or receiving new output restarts the countdown;
-brief visits do not add up. Customize `emacs-agents-read-delay` to use another
+brief visits do not add up. Customize `mx-machina-read-delay` to use another
 delay, such as 3 seconds (0 restores immediate acknowledgment). Press `u` to mark
 an agent read immediately. Merely showing its buffer in an unselected window
 does not acknowledge it. Replayed history and thought/tool events do not
@@ -330,8 +343,8 @@ present; zero counts are omitted. Refreshes preserve selection and never move
 keyboard focus. Rendering the modeline does not query SQLite or launch agents.
 Disable just the counts with `M-x mx-machina-status-mode`.
 
-Customize `emacs-agents-sidebar-side` (left/right) and
-`emacs-agents-sidebar-width` (columns). The sidebar uses side-window slot 1 to coexist with a sidebar
+Customize `mx-machina-sidebar-side` (left/right) and
+`mx-machina-sidebar-width` (columns). The sidebar uses side-window slot 1 to coexist with a sidebar
 in slot 0, such as Treemacs. Narrow frames may need smaller pane sizes.
 
 | Key | Action |
@@ -383,7 +396,7 @@ The board reflects actual agent states; cards cannot be dragged into a different
 status. It is an optional prototype for comparing the overview with the sidebar,
 not a replacement for the compact view. Sidebar folder headings now have clearer
 weight and separation, details are muted, and unread names retain emphasis.
-Customize `emacs-agents-sidebar-line-spacing` (default `0.12`, `0` for compact)
+Customize `mx-machina-sidebar-line-spacing` (default `0.12`, `0` for compact)
 to adjust its vertical density.
 
 ### Attention navigation
@@ -500,7 +513,7 @@ captured replies to 128 KiB.
 Requests and replies are stored as private JSON files under the registry's
 `messages/` directory (directory mode 0700, files 0600), separate from backend
 history. Completed records and their idempotency keys expire after seven days
-while messaging runs; customize `emacs-agents-messaging-retention-days` (minimum
+while messaging runs; customize `mx-machina-messaging-retention-days` (minimum
 one day). A storage failure disables messaging without stopping healthy agents.
 This has offline integration coverage for all three interfaces; real Claude
 messaging still needs an interactive pilot before stable-release claims.
@@ -622,7 +635,7 @@ Schema v2 migrates existing v1 registries transactionally, preserving session,
 conversation and run IDs. Existing agents initially appear at the root. Migration
 can also run against an already-open registry without resetting live processes.
 
-`emacs-agents-directory` defaults to `emacs-agents/` under `user-emacs-directory`.
+`mx-machina-directory` defaults to `emacs-agents/` under `user-emacs-directory`.
 Set it before opening the registry. Keep it on a local filesystem. One Emacs
 instance owns a registry at a time.
 

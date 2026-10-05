@@ -7,14 +7,15 @@
 (require 'agent-shell)
 (require 'agent-shell-mock-agent)
 
-(defvar emacs-agents-demo--script
+(defvar mx-machina-demo--script
   (expand-file-name "../test/fake-acp.py" (file-name-directory (or load-file-name buffer-file-name))))
 
-(defun emacs-agents-demo-profile ()
+(defun mx-machina-demo-profile ()
   "Return an offline profile without changing other mock-agent configuration."
-  (let* ((command (list "python3" emacs-agents-demo--script
-                        (expand-file-name "demo/backend" emacs-agents-directory)))
+  (let* ((command (list "python3" mx-machina-demo--script
+                        (expand-file-name "demo/backend" mx-machina-directory)))
          (config (agent-shell-mock-agent-make-agent-config)))
+    ;; This persisted profile ID predates the Lisp namespace rename.
     (setf (alist-get :identifier config) 'emacs-agents-demo
           (alist-get :buffer-name config) "Agents Demo"
           (alist-get :mode-line-name config) "Offline Demo"
@@ -28,25 +29,24 @@
   "Open an offline session that can be stopped and resumed across Emacs restarts."
   (interactive)
   (unless (executable-find "python3") (user-error "The demo requires Python 3"))
-  (let* ((repo (expand-file-name "demo/worktree/" emacs-agents-directory))
-         (saved (seq-find (lambda (s) (equal (emacs-agents-session-profile s) "emacs-agents-demo"))
-                          (emacs-agents-sessions))))
+  (let* ((repo (expand-file-name "demo/worktree/" mx-machina-directory))
+         (saved (seq-find (lambda (s) (equal (mx-machina-session-profile s) "emacs-agents-demo"))
+                          (mx-machina-sessions))))
     (unless (file-directory-p (expand-file-name ".git" repo))
       (make-directory repo t)
-      (emacs-agents--git repo "init" "-b" "main")
-      (emacs-agents--git repo "-c" "user.name=Offline Demo" "-c" "user.email=demo@example.invalid"
+      (mx-machina--git repo "init" "-b" "main")
+      (mx-machina--git repo "-c" "user.name=Offline Demo" "-c" "user.email=demo@example.invalid"
                          "-c" "commit.gpgsign=false" "commit" "--allow-empty" "-m" "Offline demo"))
-    (let ((id (if saved (emacs-agents-session-id saved)
-                (emacs-agents-create "Offline demo" repo "emacs-agents-demo"))))
+    (let ((id (if saved (mx-machina-session-id saved)
+                (mx-machina-create "Offline demo" repo "emacs-agents-demo"))))
       (mx-machina)
-      (emacs-agents-open id))))
+      (mx-machina-open id))))
 
 ;; Resolve any user-supplied config function, preserving its existing profiles.
 (setq agent-shell-agent-configs
-      (cons #'emacs-agents-demo-profile
-            (remq #'emacs-agents-demo-profile
+      (cons #'mx-machina-demo-profile
+            (remq #'mx-machina-demo-profile
                   (if (functionp agent-shell-agent-configs)
                       (funcall agent-shell-agent-configs)
                     agent-shell-agent-configs))))
-(defalias 'emacs-agents-demo #'mx-machina-demo)
 ;;; demo.el ends here

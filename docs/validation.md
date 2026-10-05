@@ -257,10 +257,20 @@ transport was then stopped. An existing failed session returned backend code
 for that record. Startup success does not establish a completed real-provider
 prompt or restart/resume round trip.
 
-The M-x Machina naming pass retains registry paths, existing Emacs commands and
-CLI environment variables. `mxm` opens the same saved registry, and the old
+The initial M-x Machina naming pass (superseded by the namespace cleanup)
+retained registry paths, existing Emacs commands and CLI environment variables. `mxm` opens the same saved registry, and the old
 `scripts/emacs-agents` launcher delegates to `scripts/mxm` without losing process
 ancestry. The full 127-test suite includes a peer exchange through that legacy
 launcher with no inherited sender ID, plus saved-registry reuse through `M-x mxm`.
 Compilation with warnings as errors and all 87 core tests also pass on Emacs 30.1.
 No personal Doom configuration, installed packages or live sessions were changed.
+
+The 2026-10-05 namespace cleanup replaces the alias facade with actual
+`mx-machina-*` libraries, symbols and autoloads, and removes `mxm.el`. All 89
+core tests and 130 full-suite tests pass on Emacs 31.1, with warnings treated as
+errors when compiling all 16 Lisp files. Added checks load generated autoloads
+in a fresh Emacs with conflicting `emacs-agents.el` and `mxm.el` libraries earlier
+on `load-path`, reopen a synthetic registry produced by the pre-rename code,
+and call an old-style message service from the updated CLI. Default storage,
+profile IDs, conversation IDs and CLI environment variables stay unchanged.
+These checks run in disposable copies without loading personal configuration.

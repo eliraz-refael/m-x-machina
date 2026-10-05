@@ -1,0 +1,126 @@
+;;; mx-machina-vterm-tests.el --- Real native terminal adapter tests -*- lexical-binding: t; -*-
+;; SPDX-License-Identifier: GPL-3.0-or-later
+(require 'vterm)
+(load (expand-file-name "mx-machina-eat-tests.el" (file-name-directory (or load-file-name buffer-file-name))) nil t)
+
+(ert-deftest mx-machina-vterm-lifecycle-account-resume-and-exit ()
+  (mx-machina-test-with-eat
+    (let* ((mx-machina-vterm-profiles 'inherit)
+           ;; Exercise quoting in the command used by vterm's shell launcher.
+           (script (expand-file-name "fake 'claude $.py" temporary))
+           (_ (copy-file (expand-file-name "test/fake-claude.py" mx-machina-test-root) script))
+           (_ (setf (alist-get :command (car mx-machina-eat-profiles)) (list "python3" script)))
+           (id (mx-machina-create "Native terminal" repo "test-eat-vterm"))
+           (buffer (mx-machina-start id)))
+      (mx-machina-open id)
+      (mx-machina-eat-test-wait
+       (lambda () (equal (mx-machina-session-status (mx-machina-session id)) "live")))
+      (should (derived-mode-p 'vterm-mode))
+      (should (equal (mx-machina-session-model (mx-machina-session id)) "offline-terminal-model"))
+      (should (eq (key-binding (kbd "C-c C-t")) #'mx-machina-transcript))
+      (should (eq (key-binding (kbd "C-c ?")) #'mx-machina-actions))
+      (mx-machina-actions)
+      (mx-machina-actions-close)
+      (should (eq (window-buffer) buffer))
+      (should (process-live-p (get-buffer-process buffer)))
+      (should-not (kill-buffer buffer))
+      (process-send-string (get-buffer-process buffer) "/ask\n")
+      (mx-machina-eat-test-wait
+       (lambda () (equal (mx-machina-session-activity (mx-machina-session id)) "approval")))
+      (process-send-string (get-buffer-process buffer) "/approve\n")
+      (mx-machina-eat-test-wait
+       (lambda () (mx-machina-unread-p (mx-machina-session id))))
+      (let ((sid (mx-machina-session-conversation (mx-machina-session id)))
+            (run-directory mx-machina-claude--run-directory))
+        (mx-machina-stop id)
+        (should-not (file-exists-p run-directory))
+        (setq buffer (mx-machina-start id))
+        (mx-machina-open id)
+        (mx-machina-eat-test-wait
+         (lambda () (equal (mx-machina-session-status (mx-machina-session id)) "live")))
+        (should (equal sid (mx-machina-session-conversation (mx-machina-session id))))
+        (with-temp-buffer
+          (insert-file-contents (expand-file-name "claude/launches.jsonl" temporary))
+          (goto-char (point-min))
+          (forward-line)
+          (let ((launch (json-parse-string (buffer-substring (point) (line-end-position)) :object-type 'alist)))
+            (should (equal (alist-get 'resume launch) sid))
+            (should (equal (alist-get 'account launch) "fixture-account"))))
+        (setq run-directory mx-machina-claude--run-directory)
+        (process-send-string (get-buffer-process buffer) "/exit\n")
+        (mx-machina-eat-test-wait
+         (lambda () (equal (mx-machina-session-status (mx-machina-session id)) "exited")))
+        (should (buffer-live-p buffer))
+        (should-not (file-exists-p run-directory))
+        (should-not mx-machina-claude--timer)))))
+
+(ert-deftest mx-machina-vterm-startup-failure-cleans-up ()
+  (mx-machina-test-with-eat
+    (let ((mx-machina-vterm-profiles 'inherit) buffer directory)
+      (let ((mx-machina-vterm-setup-hook
+             (list (lambda () (setq buffer (current-buffer) directory mx-machina-claude--run-directory)
+                     (error "Intentional vterm setup failure"))))
+            (id (mx-machina-create "Failure" repo "test-eat-vterm")))
+        (should-error (mx-machina-start id))
+        (should-not (gethash id mx-machina--running))
+        (should-not (get-buffer-process buffer))
+        (should-not (buffer-local-value 'mx-machina-claude--timer buffer))
+        (should-not (file-exists-p directory))
+        (should (equal (mx-machina-session-status (mx-machina-session id)) "failed"))))))
+
+(ert-deftest mx-machina-vterm-fullscreen-streaming-navigation ()
+  (mx-machina-test-with-eat
+    (let* ((mx-machina-vterm-profiles 'inherit)
+           (id (mx-machina-create "Streaming" repo "test-eat-vterm"))
+           (buffer (mx-machina-start id)))
+      (mx-machina-open id)
+      (mx-machina-eat-test-wait
+       (lambda () (equal (mx-machina-session-status (mx-machina-session id)) "live")))
+      (process-send-string (get-buffer-process buffer) "/fullscreen\n")
+      (mx-machina-eat-test-wait (lambda () (mx-machina-eat-test-screen-number "History row")))
+      (when (bound-and-true-p evil-mode)
+        (evil-normal-state)
+        (should (eq (key-binding (kbd "C-u")) #'mx-machina-vterm-scroll-up)))
+      (let ((top (mx-machina-eat-test-screen-number "History row")))
+        (call-interactively (key-binding (kbd "<prior>")))
+        (mx-machina-eat-test-wait
+         (lambda () (< (mx-machina-eat-test-screen-number "History row") top))))
+      (should-not (mx-machina-vterm--read-position))
+      (let ((top (mx-machina-eat-test-screen-number "History row"))
+            (count (mx-machina-eat-test-screen-number "STREAM COUNT")))
+        (mx-machina-eat-test-wait
+         (lambda () (> (mx-machina-eat-test-screen-number "STREAM COUNT") (+ count 2))))
+        (should (= top (mx-machina-eat-test-screen-number "History row"))))
+      (mx-machina-vterm-latest)
+      (mx-machina-eat-test-wait
+       (lambda () (= (mx-machina-eat-test-screen-number "History row")
+                     (- (mx-machina-eat-test-screen-number "STREAM COUNT") 10))))
+      (should (mx-machina-vterm--read-position))
+      (when (bound-and-true-p evil-mode)
+        (evil-insert-state)
+        (should-not (eq (key-binding (kbd "C-u")) #'mx-machina-vterm-scroll-up))
+        (should (eq (key-binding (kbd "RET")) #'vterm-send-return))))))
+
+(ert-deftest mx-machina-vterm-classic-copy-mode-scrolls-buffer ()
+  (mx-machina-test-with-eat
+    (let* ((mx-machina-vterm-profiles 'inherit)
+           (id (mx-machina-create "Scrollback" repo "test-eat-vterm"))
+           (buffer (mx-machina-start id)))
+      (mx-machina-open id)
+      (mx-machina-eat-test-wait
+       (lambda () (equal (mx-machina-session-status (mx-machina-session id)) "live")))
+      (process-send-string (get-buffer-process buffer) "/long\n")
+      (mx-machina-eat-test-wait (lambda () (string-match-p "Long row 3999" (buffer-string))))
+      (vterm-copy-mode 1)
+      (should-not (mx-machina-vterm--read-position))
+      (goto-char (point-max))
+      (let ((position (point)))
+        (mx-machina-vterm-scroll-up)
+        (should (< (point) position))
+        (should vterm-copy-mode))
+      (should (string-match-p "Long row 0000" (buffer-string)))
+      (mx-machina-vterm-latest)
+      (should-not vterm-copy-mode)
+      (should (mx-machina-vterm--read-position)))))
+
+(provide 'mx-machina-vterm-tests)

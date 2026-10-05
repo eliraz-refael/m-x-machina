@@ -16,14 +16,18 @@ def rpc(payload, socket=None):
     command = ["emacsclient", "--alternate-editor=false"]
     if socket:
         command += ["--socket-name", socket]
-    command += ["--eval", '(emacs-agents-messaging-rpc "' + encoded + '")']
+    # An already-running Emacs may still have the pre-rename package loaded.
+    # Keep CLI calls usable until its next restart without defining Lisp aliases.
+    command += ["--eval", "(funcall (if (fboundp 'mx-machina-messaging-rpc) "
+                "'mx-machina-messaging-rpc 'emacs-agents-messaging-rpc) "
+                + '"' + encoded + '")']
     result = subprocess.run(command, capture_output=True, text=True, timeout=15)
     if result.returncode:
-        raise RuntimeError(result.stderr.strip() or "Cannot reach Emacs; enable emacs-agents-messaging-mode there")
+        raise RuntimeError(result.stderr.strip() or "Cannot reach Emacs; enable mx-machina-messaging-mode there")
     try:
         response = json.loads(base64.b64decode(json.loads(result.stdout)))
     except (ValueError, TypeError) as error:
-        raise RuntimeError("Unexpected Emacs response; enable emacs-agents-messaging-mode") from error
+        raise RuntimeError("Unexpected Emacs response; enable mx-machina-messaging-mode") from error
     if not response.get("ok"):
         raise RuntimeError(response.get("error", "Request failed"))
     return response["result"]

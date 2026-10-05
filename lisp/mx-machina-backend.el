@@ -1,4 +1,4 @@
-;;; emacs-agents-backend.el --- Agent adapter boundary -*- lexical-binding: t; -*-
+;;; mx-machina-backend.el --- Agent adapter boundary -*- lexical-binding: t; -*-
 ;; SPDX-License-Identifier: GPL-3.0-or-later
 ;;; Commentary:
 ;; Session identity and views are shared by structured and terminal adapters.
@@ -8,10 +8,10 @@
 (require 'seq)
 (require 'subr-x)
 
-(require 'emacs-agents-transport)
-(require 'emacs-agents-claude)
+(require 'mx-machina-transport)
+(require 'mx-machina-claude)
 
-(defun emacs-agents-backend-configs ()
+(defun mx-machina-backend-configs ()
   "Return available structured and terminal profiles without launching agents."
   (let* ((configs
           (apply #'append
@@ -21,23 +21,23 @@
                                        (setf (alist-get :interface copy) (car entry))
                                        copy))
                                    (cdr entry)))
-                         (list (cons 'agent-shell (emacs-agents-agent-shell-configs))
-                               (cons 'eat (emacs-agents-eat-configs))
-                               (cons 'vterm (emacs-agents-vterm-configs))))))
+                         (list (cons 'agent-shell (mx-machina-agent-shell-configs))
+                               (cons 'eat (mx-machina-eat-configs))
+                               (cons 'vterm (mx-machina-vterm-configs))))))
          (ids (mapcar (lambda (config) (map-elt config :identifier)) configs)))
     (unless (= (length ids) (length (delete-dups (copy-sequence ids))))
       (user-error "Agent profile identifiers must be unique across backends"))
     configs))
 
-(defun emacs-agents--terminal-transport-p (transport)
+(defun mx-machina--terminal-transport-p (transport)
   "Return non-nil when TRANSPORT uses a Claude terminal."
-  (let ((buffer (emacs-agents-transport-buffer transport)))
+  (let ((buffer (mx-machina-transport-buffer transport)))
     (and (buffer-live-p buffer)
-         (memq (buffer-local-value 'emacs-agents--backend-kind buffer) '(eat vterm)))))
+         (memq (buffer-local-value 'mx-machina--backend-kind buffer) '(eat vterm)))))
 
-(defun emacs-agents-backend-read-profile ()
+(defun mx-machina-backend-read-profile ()
   "Choose an agent, account and interface, returning the durable profile ID."
-  (let ((configs (emacs-agents-backend-configs)))
+  (let ((configs (mx-machina-backend-configs)))
     (unless configs (user-error "Configure an agent profile first"))
     (dolist (field '((:agent . "Agent: ") (:account . "Account: ") (:interface . "Interface: ")))
       (let* ((label (lambda (config)
@@ -53,43 +53,43 @@
       (if (= (length ids) 1) (car ids)
         (completing-read "Profile: " ids nil t)))))
 
-(defun emacs-agents-backend-start (profile directory conversation callback)
+(defun mx-machina-backend-start (profile directory conversation callback)
   "Start PROFILE in DIRECTORY, restoring CONVERSATION and calling CALLBACK."
   (let ((config (seq-find (lambda (entry) (equal profile (symbol-name (map-elt entry :identifier))))
-                          (emacs-agents-backend-configs))))
+                          (mx-machina-backend-configs))))
     (pcase (map-elt config :interface)
-      ('eat (emacs-agents-eat-start profile directory conversation callback))
-      ('vterm (emacs-agents-vterm-start profile directory conversation callback))
-      ('agent-shell (emacs-agents-agent-shell-start profile directory conversation callback))
+      ('eat (mx-machina-eat-start profile directory conversation callback))
+      ('vterm (mx-machina-vterm-start profile directory conversation callback))
+      ('agent-shell (mx-machina-agent-shell-start profile directory conversation callback))
       (_ (user-error "Restore the saved profile: %s" profile)))))
 
-(defun emacs-agents-backend-process (transport)
+(defun mx-machina-backend-process (transport)
   "Return TRANSPORT's process."
-  (if (emacs-agents--terminal-transport-p transport)
-      (get-buffer-process (emacs-agents-transport-buffer transport))
-    (emacs-agents-agent-shell-process transport)))
+  (if (mx-machina--terminal-transport-p transport)
+      (get-buffer-process (mx-machina-transport-buffer transport))
+    (mx-machina-agent-shell-process transport)))
 
-(defun emacs-agents-backend-stop (transport)
+(defun mx-machina-backend-stop (transport)
   "Stop TRANSPORT, retaining its buffer and conversation identity."
-  (if (emacs-agents--terminal-transport-p transport)
-      (emacs-agents-claude-stop transport)
-    (emacs-agents-agent-shell-stop transport)))
+  (if (mx-machina--terminal-transport-p transport)
+      (mx-machina-claude-stop transport)
+    (mx-machina-agent-shell-stop transport)))
 
-(defun emacs-agents-backend-metadata (transport)
+(defun mx-machina-backend-metadata (transport)
   "Return TRANSPORT's reported metadata."
-  (if (emacs-agents--terminal-transport-p transport)
-      (emacs-agents-claude-metadata transport)
-    (emacs-agents-agent-shell-metadata transport)))
+  (if (mx-machina--terminal-transport-p transport)
+      (mx-machina-claude-metadata transport)
+    (mx-machina-agent-shell-metadata transport)))
 
-(defun emacs-agents--transport-fail (transport message)
+(defun mx-machina--transport-fail (transport message)
   "Record MESSAGE and stop TRANSPORT without permitting replacement."
-  (unless (emacs-agents-transport-failed transport)
-    (setf (emacs-agents-transport-failed transport) t)
-    (funcall (emacs-agents-transport-callback transport) "failed" "unknown" nil message)
-    (run-at-time 0 nil #'emacs-agents-backend-stop transport)))
+  (unless (mx-machina-transport-failed transport)
+    (setf (mx-machina-transport-failed transport) t)
+    (funcall (mx-machina-transport-callback transport) "failed" "unknown" nil message)
+    (run-at-time 0 nil #'mx-machina-backend-stop transport)))
 
-(require 'emacs-agents-agent-shell)
-(require 'emacs-agents-eat)
-(require 'emacs-agents-vterm)
-(provide 'emacs-agents-backend)
-;;; emacs-agents-backend.el ends here
+(require 'mx-machina-agent-shell)
+(require 'mx-machina-eat)
+(require 'mx-machina-vterm)
+(provide 'mx-machina-backend)
+;;; mx-machina-backend.el ends here
