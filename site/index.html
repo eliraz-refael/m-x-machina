@@ -1,0 +1,334 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>M-x Machina: persistent coding agents for Emacs</title>
+<meta name="description" content="M-x Machina is an experimental Emacs package for running named, persistent coding agents in folders and worktrees, with colored status, unread markers and explicit resume after restart.">
+<meta name="theme-color" content="#F1F2F4">
+<meta property="og:type" content="website">
+<meta property="og:title" content="M-x Machina">
+<meta property="og:description" content="Every coding agent gets a name, a worktree and a way back. An experimental Emacs package.">
+<meta property="og:url" content="https://eliraz-refael.github.io/m-x-machina/">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap">
+<link rel="stylesheet" href="styles.css">
+<script src="app.js" defer></script>
+</head>
+<body id="top">
+<a class="skip-link" href="#main">Skip to content</a>
+
+<header class="site-header">
+  <nav class="wrap nav" aria-label="Main">
+    <a class="brand" href="#top" aria-label="M-x Machina, back to top">
+      <span class="kc" aria-hidden="true">M-x</span>
+      <span class="brand__name" aria-hidden="true">Machina</span>
+    </a>
+    <div class="nav__links">
+      <a href="#tour">Tour</a>
+      <a href="#features">Features</a>
+      <a href="#interfaces">Interfaces</a>
+      <a href="#messaging">Messaging</a>
+      <a href="#limits">Limits</a>
+      <a href="#quickstart">Quickstart</a>
+    </div>
+    <a class="btn btn--ghost btn--sm" href="https://github.com/eliraz-refael/m-x-machina">
+      <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="2.5"/><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="8" r="2.5"/><path d="M6 8.5v7"/><path d="M18 10.5c0 4-6 3-11 6"/></svg>
+      GitHub
+    </a>
+  </nav>
+</header>
+
+<main id="main">
+
+<section class="wrap hero" aria-labelledby="hero-title">
+  <div class="hero__copy">
+    <div class="pills">
+      <span class="pill pill--solid">Experimental alpha · v0.1</span>
+      <span class="pill">Emacs 29.1+ with SQLite</span>
+      <span class="pill">GPL-3.0</span>
+    </div>
+    <h1 id="hero-title">Every coding agent gets a name, a worktree and a way back.</h1>
+    <p class="lede">M-x Machina is an Emacs package for running several coding agents side by side. Each one is named, filed in folders, color-coded by state, tied to its own Git worktree, and resumable from the same saved conversation after you restart Emacs.</p>
+    <div class="actions">
+      <a class="btn btn--primary" href="#quickstart">Get started <span aria-hidden="true">→</span></a>
+      <a class="btn btn--ghost" href="https://github.com/eliraz-refael/m-x-machina#readme">Read the README</a>
+    </div>
+  </div>
+
+  <div class="mx-card">
+    <div class="mx-prompt" aria-hidden="true">
+      <span class="mx-prompt__key">M-x</span>
+      <span class="mx-prompt__cmd" id="mx-typed">mx-machina</span>
+      <span class="mx-prompt__caret caret"></span>
+    </div>
+    <ul class="mx-cmds" aria-label="Main commands">
+      <li><button class="mx-cmd" type="button" data-cmd="0" aria-pressed="true"><span class="mx-cmd__name">mx-machina</span><span class="mx-cmd__desc">Open the sidebar beside your work</span></button></li>
+      <li><button class="mx-cmd" type="button" data-cmd="1" aria-pressed="false"><span class="mx-cmd__name">mx-machina-new</span><span class="mx-cmd__desc">Name an agent, pick a checkout or a new worktree</span></button></li>
+      <li><button class="mx-cmd" type="button" data-cmd="2" aria-pressed="false"><span class="mx-cmd__name">mx-machina-board</span><span class="mx-cmd__desc">See every agent by state, grouped by folder</span></button></li>
+      <li><button class="mx-cmd" type="button" data-cmd="3" aria-pressed="false"><span class="mx-cmd__name">mx-machina-focus</span><span class="mx-cmd__desc">Fill the frame with one conversation, then restore</span></button></li>
+      <li><button class="mx-cmd" type="button" data-cmd="4" aria-pressed="false"><span class="mx-cmd__name">mx-machina-messaging-mode</span><span class="mx-cmd__desc">Opt in to local agent-to-agent requests</span></button></li>
+    </ul>
+  </div>
+</section>
+
+<section id="tour" class="wrap section tour" aria-labelledby="tour-title">
+  <div class="tour__head">
+    <div class="section-head">
+      <div class="eyebrow"><span class="kc kc--sm">01</span>TOUR</div>
+      <h2 id="tour-title">Drive it with the real keys.</h2>
+    </div>
+    <p class="tour__note">An illustrative frame with fictional agents, not a screenshot. Click inside it, then use the same keys as the sidebar: one agent is waiting for approval, one has an unread reply, and one will finish while you watch.</p>
+  </div>
+
+  <section class="mx-frame" id="mx-frame" tabindex="0" aria-roledescription="interactive illustration" aria-label="Illustrative Emacs frame with fictional agents" aria-describedby="mx-help">
+    <p class="sr-only" id="mx-help">Keyboard: j and k move, Enter opens or resumes, Tab shows details, right and left bracket jump between agents needing attention, z focuses, B opens the board, i diagnoses, question mark lists actions, x stops, u marks read, e opens eshell, q goes back. Shift+Tab or Escape leaves the frame.</p>
+    <div class="mx-titlebar">
+      <span class="mx-titlebar__dot" aria-hidden="true"></span>
+      <span class="mx-titlebar__dot" aria-hidden="true"></span>
+      <span class="mx-titlebar__dot" aria-hidden="true"></span>
+      <span class="mx-titlebar__name">emacs</span>
+      <span class="mx-focus-hint" aria-hidden="true">Esc leaves</span>
+      <span class="mx-badge">Illustrative · fictional agents</span>
+    </div>
+    <div class="mx-body">
+      <div class="mx-side" id="mx-side"></div>
+      <div class="mx-main" id="mx-main">
+        <noscript><p class="mx-noscript">This interactive illustration needs JavaScript. The rest of the page works without it.</p></noscript>
+      </div>
+    </div>
+    <div class="mx-modeline" id="mx-modeline"></div>
+    <div class="mx-msg" id="mx-msg" aria-live="polite"></div>
+    <div class="sr-only" id="mx-sr" aria-live="polite"></div>
+  </section>
+
+  <div class="keys">
+    <div class="keypad" role="group" aria-label="Send a key to the frame">
+      <button class="keybtn" type="button" data-key="j" aria-label="Press j, down"><span class="kc" aria-hidden="true">j</span><span aria-hidden="true">down</span></button>
+      <button class="keybtn" type="button" data-key="k" aria-label="Press k, up"><span class="kc" aria-hidden="true">k</span><span aria-hidden="true">up</span></button>
+      <button class="keybtn" type="button" data-key="Enter" aria-label="Press RET, open or resume"><span class="kc" aria-hidden="true">RET</span><span aria-hidden="true">open / resume</span></button>
+      <button class="keybtn" type="button" data-key="Tab" aria-label="Press TAB, details"><span class="kc" aria-hidden="true">TAB</span><span aria-hidden="true">details</span></button>
+      <button class="keybtn" type="button" data-key="]" aria-label="Press right bracket, next agent needing attention"><span class="kc" aria-hidden="true">]</span><span aria-hidden="true">next attention</span></button>
+      <button class="keybtn" type="button" data-key="z" aria-label="Press z, focus"><span class="kc" aria-hidden="true">z</span><span aria-hidden="true">focus</span></button>
+      <button class="keybtn" type="button" data-key="B" aria-label="Press B, board"><span class="kc" aria-hidden="true">B</span><span aria-hidden="true">board</span></button>
+      <button class="keybtn" type="button" data-key="i" aria-label="Press i, diagnose"><span class="kc" aria-hidden="true">i</span><span aria-hidden="true">diagnose</span></button>
+      <button class="keybtn" type="button" data-key="x" aria-label="Press x, stop"><span class="kc" aria-hidden="true">x</span><span aria-hidden="true">stop</span></button>
+      <button class="keybtn" type="button" data-key="u" aria-label="Press u, mark read"><span class="kc" aria-hidden="true">u</span><span aria-hidden="true">mark read</span></button>
+      <button class="keybtn" type="button" data-key="?" aria-label="Press question mark, actions"><span class="kc" aria-hidden="true">?</span><span aria-hidden="true">actions</span></button>
+      <button class="keybtn" type="button" data-key="e" aria-label="Press e, eshell"><span class="kc" aria-hidden="true">e</span><span aria-hidden="true">eshell</span></button>
+      <button class="keybtn" type="button" data-key="q" aria-label="Press q, back"><span class="kc" aria-hidden="true">q</span><span aria-hidden="true">back</span></button>
+    </div>
+    <ul class="legend" aria-label="Status colors">
+      <li><span aria-hidden="true" style="color:#1F5FD1">●</span>working</li>
+      <li><span aria-hidden="true" style="color:#17804A">●</span>ready</li>
+      <li><span aria-hidden="true" style="color:#A86400">●</span>approval / input</li>
+      <li><span aria-hidden="true" style="color:#C23A2B">●</span>error</li>
+      <li><span aria-hidden="true" style="color:#5F6672">●</span>stopped</li>
+      <li><span aria-hidden="true" style="color:#7B3FC4;font-weight:700">*</span>unread reply</li>
+    </ul>
+  </div>
+</section>
+
+<section id="features" class="section--band" aria-labelledby="features-title">
+  <div class="wrap section">
+    <div class="section-head">
+      <div class="eyebrow"><span class="kc kc--sm">02</span>FEATURES</div>
+      <h2 id="features-title">Six keys explain most of it.</h2>
+      <p>Everything below exists in v0.1. Each idea starts from the key that does it in the sidebar.</p>
+    </div>
+    <div class="features">
+      <article class="feature">
+        <span class="kc kc--lg" aria-hidden="true">n</span>
+        <div class="feature__body">
+          <h3>Name it, and give it a worktree.</h3>
+          <p>Create a named agent in an existing checkout, or let Git create a new worktree and branch for it from the current commit. Uncommitted changes stay in the original checkout. Existing branches and directories are rejected, never reused.</p>
+        </div>
+      </article>
+      <article class="feature">
+        <span class="kc kc--lg" aria-hidden="true">N</span>
+        <div class="feature__body">
+          <h3>File it in folders, as deep as you like.</h3>
+          <p>Logical folders like <code>Work/Billing Service</code> organize the sidebar without moving any files. Collapsed folders still summarize working, waiting and unread agents inside them. Renaming an agent leaves its conversation ID alone.</p>
+        </div>
+      </article>
+      <article class="feature">
+        <span class="kc kc--lg" aria-hidden="true">]</span>
+        <div class="feature__body">
+          <h3>See which agent needs you.</h3>
+          <p>Color means state. A purple <b style="color:#7B3FC4">*</b> marks a reply you haven’t read, and it clears only after five continuous seconds on screen. <code>]</code> and <code>[</code> cycle through approval requests first, then unread replies.</p>
+          <div class="modeline-sample">Agents: <span class="c-work">3 working</span> · <span class="c-ready">2 ready</span> · <span class="c-wait">1 approval</span> · <span class="c-stop">4 stopped</span></div>
+        </div>
+      </article>
+      <article class="feature">
+        <span class="kc kc--lg" aria-hidden="true">z</span>
+        <div class="feature__body">
+          <h3>Sidebar, board or focus.</h3>
+          <p>The sidebar stays visible while you edit. <code>B</code> opens a board grouped by folder with Working, Waiting, Ready and Stopped columns. <code>z</code> fills the frame with one conversation, and pressing it again puts your windows back.</p>
+        </div>
+      </article>
+      <article class="feature">
+        <span class="kc kc--lg" aria-hidden="true">RET</span>
+        <div class="feature__body">
+          <h3>Stop it, restart Emacs, resume it.</h3>
+          <p>SQLite keeps each agent’s conversation ID, profile, worktree and branch. After a restart the dashboard loads only that metadata, and <code>RET</code> asks the backend for the same conversation. If that fails, nothing silently starts in its place, and no input is replayed.</p>
+        </div>
+      </article>
+      <article class="feature">
+        <span class="kc kc--lg" aria-hidden="true">i</span>
+        <div class="feature__body">
+          <h3>Diagnose without launching anything.</h3>
+          <p>Diagnostics checks the profile, executable, checkout, branch and saved identity without starting the agent or contacting the backend. <code>W</code> points a stopped agent at a moved worktree after you confirm. <code>R</code> retries once you’ve fixed the cause.</p>
+        </div>
+      </article>
+    </div>
+  </div>
+</section>
+
+<section id="interfaces" class="wrap section" aria-labelledby="interfaces-title">
+  <div class="section-head">
+    <div class="eyebrow"><span class="kc kc--sm">03</span>INTERFACES</div>
+    <h2 id="interfaces-title">Keep the interface you already use.</h2>
+    <p>Creating an agent asks for agent, then account, then interface. All of them share the same sidebar, folders, worktree context and focus commands.</p>
+  </div>
+  <div class="cards">
+    <article class="card">
+      <div class="card__head"><h3>agent-shell</h3><span class="card__kind">ACP</span></div>
+      <p>Native Emacs UI through ACP, reusing your agent-shell profiles and separate accounts. Tested with agent-shell 0.83.4.</p>
+    </article>
+    <article class="card">
+      <div class="card__head"><h3>EAT</h3><span class="card__kind">terminal</span></div>
+      <p>Claude Code’s terminal UI, with per-run hooks that report status and session identity. Your Claude and project settings are never edited.</p>
+    </article>
+    <article class="card">
+      <div class="card__head"><h3>vterm</h3><span class="card__kind">terminal</span></div>
+      <p>The same terminal integration through vterm’s native module, with history navigation and copy mode.</p>
+    </article>
+    <article class="card card--dashed">
+      <div class="card__head"><h3>eshell</h3><span class="card__kind">companion</span></div>
+      <p>Press <code>e</code> for a separate shell in the agent’s worktree. It keeps its history and draft. It runs commands for you and is not an agent interface.</p>
+    </article>
+  </div>
+</section>
+
+<section id="messaging" class="dark" aria-labelledby="messaging-title">
+  <div class="wrap messaging">
+    <div class="messaging__copy">
+      <div class="eyebrow"><span class="kc kc--sm kc--invert">04</span>MESSAGING · OPT-IN</div>
+      <h2 id="messaging-title">Agents can consult each other when you turn it on.</h2>
+      <p><code>M-x mx-machina-messaging-mode</code> starts a local message service. You, or an agent you instruct, use the <code>mxm</code> CLI to list peers and send a request. With <code>--wait</code> it returns that peer’s actual reply as JSON.</p>
+      <ul class="arrows">
+        <li>Runs over a local Unix socket under your OS user. Sender IDs are for attribution and don’t authenticate agents.</li>
+        <li>Delivery waits while the recipient is busy, awaiting approval, visible in a window or holding an unsent draft.</li>
+        <li>Each recipient handles one request at a time. Sending never launches a stopped agent or answers a permission prompt.</li>
+        <li>It only routes requests someone asked for. It never decides which agent should work on what.</li>
+      </ul>
+    </div>
+    <figure class="terminal">
+      <div class="terminal__win">
+        <div class="terminal__bar"><span>terminal</span><span>illustrative output</span></div>
+<pre><span class="ps">$</span> mxm list
+[{"id": "5d0c…", "name": "Work/Billing Service/Harness",
+  "status": "live", "activity": "input", …},
+ …]
+
+<span class="ps">$</span> mxm send 'Work/Billing Service/Harness' \
+    'Do the new retry tests cover shutdown?' --wait
+<span class="dim">Request ID: 2e6f…</span>
+{"id": "2e6f…", "status": "completed",
+ "response": "Yes. Two of the six cover shutdown mid-retry.", …}</pre>
+      </div>
+      <figcaption>Fictional agents and replies, abbreviated. <code>list</code> and every result are JSON. A timed-out wait exits with code 2 and leaves the request active.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<section id="limits" class="wrap section" aria-labelledby="limits-title">
+  <div class="section-head">
+    <div class="eyebrow"><span class="kc kc--sm">05</span>LIMITS</div>
+    <h2 id="limits-title">What v0.1 doesn’t do.</h2>
+    <p>This is an experimental alpha. It’s worth knowing where the edges are before you rely on it.</p>
+  </div>
+  <div class="limits">
+    <div class="limit"><h3>No autonomous orchestration</h3><p>Agents never assign each other work. Messaging carries only requests that someone explicitly sent.</p></div>
+    <div class="limit"><h3>No detached execution <span class="tag">planned</span></h3><p>Agents are processes owned by Emacs. They don’t keep running after Emacs exits.</p></div>
+    <div class="limit"><h3>No cloud</h3><p>The registry, sockets and message files are local to your machine. Credentials and history stay with each backend.</p></div>
+    <div class="limit"><h3>Resume isn’t guaranteed</h3><p>Resuming depends on the backend still having that history and on the original profile and account. When it fails, you see the failure instead of a replacement conversation.</p></div>
+    <div class="limit"><h3>No PR or CI integration <span class="tag">future work</span></h3><p>Worktrees and branches are tracked, but pull requests and CI runs are not.</p></div>
+    <div class="limit"><h3>Messaging is offline-tested</h3><p>Integration tests cover all three interfaces offline. Real Claude messaging still needs an interactive pilot.</p></div>
+  </div>
+  <p class="after-note"><a href="https://github.com/eliraz-refael/m-x-machina/blob/main/docs/backlog.md">See the prioritized backlog</a> for the path to dependable daily use.</p>
+</section>
+
+<section id="quickstart" class="section--band" aria-labelledby="quickstart-title" style="border-bottom:0">
+  <div class="wrap section">
+    <div class="section-head">
+      <div class="eyebrow"><span class="kc kc--sm">06</span>QUICKSTART</div>
+      <h2 id="quickstart-title">Clone it, load it, press <span style="font-family:var(--font-mono);font-size:0.8em">n</span>.</h2>
+      <p>Loading the package installs nothing globally. To try it without a model or account, start with the offline demo.</p>
+    </div>
+    <div class="qs">
+      <div class="qs-code">
+        <div class="tabs" role="tablist" aria-label="Setup">
+          <button class="tab" type="button" role="tab" id="qs-tab-emacs" aria-controls="qs-panel" aria-selected="true" data-tab="emacs">Emacs</button>
+          <button class="tab" type="button" role="tab" id="qs-tab-doom" aria-controls="qs-panel" aria-selected="false" tabindex="-1" data-tab="doom">Doom</button>
+          <button class="tab" type="button" role="tab" id="qs-tab-demo" aria-controls="qs-panel" aria-selected="false" tabindex="-1" data-tab="demo">Offline demo</button>
+          <button class="tab" type="button" role="tab" id="qs-tab-cli" aria-controls="qs-panel" aria-selected="false" tabindex="-1" data-tab="cli">mxm CLI</button>
+        </div>
+        <div class="tabpanel" id="qs-panel" role="tabpanel" aria-labelledby="qs-tab-emacs" tabindex="0">
+<pre id="qs-code">git clone https://github.com/eliraz-refael/m-x-machina.git
+
+;; init.el (adjust the path)
+(add-to-list 'load-path "/path/to/m-x-machina/lisp")
+(require 'mx-machina)
+
+;; then
+M-x mx-machina      ; sidebar, press n for a new agent</pre>
+          <div class="tabpanel__foot">
+            <span class="copy-status" id="qs-copy-status" role="status"></span>
+            <button class="copy-btn" type="button" id="qs-copy" hidden>Copy</button>
+          </div>
+        </div>
+      </div>
+      <div class="qs-req">
+        <h3>Requirements</h3>
+        <dl>
+          <div><dt>Emacs 29.1+ built with SQLite</dt><dd>Check with <code>M-: (sqlite-available-p)</code></dd></div>
+          <div><dt>Git</dt><dd>The worktree needs at least one commit.</dd></div>
+          <div><dt>For ACP profiles</dt><dd>Tested with agent-shell 0.83.4, ACP 0.15.2 and shell-maker 0.97.5.</dd></div>
+          <div><dt>For terminal profiles</dt><dd>EAT or vterm (with its native module), an authenticated Claude Code CLI and Python 3.</dd></div>
+          <div><dt>Optional</dt><dd>Magit, Evil, and Doom bindings from the included example.</dd></div>
+        </dl>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="wrap cta" aria-labelledby="cta-title">
+  <h2 id="cta-title">Try the offline demo first. No model, credentials or network needed.</h2>
+  <div class="actions">
+    <a class="btn btn--primary" href="#quickstart">Get started <span aria-hidden="true">→</span></a>
+    <a class="btn btn--ghost" href="https://github.com/eliraz-refael/m-x-machina/blob/main/CONTRIBUTING.md">Contribute</a>
+  </div>
+</section>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap footer">
+    <div class="footer__about">
+      <div class="footer__brand"><span class="kc kc--xs" aria-hidden="true">M-x</span><span>Machina</span></div>
+      <span>Emacs package <code>mx-machina</code> · CLI <code>mxm</code> · GPL-3.0-or-later. Product views on this page are illustrative mockups with fictional agents.</span>
+    </div>
+    <nav aria-label="Project links">
+      <a href="https://github.com/eliraz-refael/m-x-machina">GitHub</a>
+      <a href="https://github.com/eliraz-refael/m-x-machina#readme">README</a>
+      <a href="https://github.com/eliraz-refael/m-x-machina/blob/main/docs/design.md">Design notes</a>
+      <a href="https://github.com/eliraz-refael/m-x-machina/blob/main/docs/testing.md">Testing</a>
+      <a href="https://github.com/eliraz-refael/m-x-machina/blob/main/CONTRIBUTING.md">Contributing</a>
+      <a href="https://github.com/eliraz-refael/m-x-machina/blob/main/LICENSE">License</a>
+    </nav>
+  </div>
+</footer>
+</body>
+</html>
