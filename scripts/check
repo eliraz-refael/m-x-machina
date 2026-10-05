@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Check a disposable copy of emacs-agents without loading personal Emacs config."""
+"""Check a disposable copy of mx-machina without loading personal Emacs config."""
 import argparse
 import json
 import os
@@ -76,7 +76,7 @@ def main():
     env["PATH"] = str(Path(emacs).parent) + os.pathsep + env.get("PATH", "")
     paths = dependencies(GROUPS[args.suite], args.deps_dir.resolve(), args.fetch_deps,
                          args.build_vterm, env)
-    with tempfile.TemporaryDirectory(prefix="emacs-agents-check-") as temporary:
+    with tempfile.TemporaryDirectory(prefix="mx-machina-check-") as temporary:
         sandbox = Path(temporary)
         checkout = sandbox / "checkout"
         for folder in ("lisp", "scripts", "test", "examples"):
@@ -105,11 +105,11 @@ def main():
         for group in CORE:
             if group == "messaging" and args.suite == "all":
                 continue  # The integration suite loads its unit tests itself.
-            command += ["-l", str(checkout / f"test/emacs-agents-{group}-tests.el")]
+            command += ["-l", str(checkout / f"test/mx-machina-{group}-tests.el")]
         suites = {"acp": ["acp"], "eat": ["eat"], "vterm": ["vterm"],
                   "all": ["messaging-integration"]}.get(args.suite, [])
         for group in suites:
-            command += ["-l", str(checkout / f"test/emacs-agents-{group}-tests.el")]
+            command += ["-l", str(checkout / f"test/mx-machina-{group}-tests.el")]
         for group in ("acp", "eat", "vterm", "messaging-integration"):
             enabled = args.suite == "all" or group in suites or (args.suite == "vterm" and group == "eat")
             print(f"{'RUN' if enabled else 'SKIP'} {group}" +

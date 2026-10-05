@@ -1,12 +1,12 @@
-;;; emacs-agents-vterm.el --- Claude Code in vterm -*- lexical-binding: t; -*-
+;;; mx-machina-vterm.el --- Claude Code in vterm -*- lexical-binding: t; -*-
 ;; SPDX-License-Identifier: GPL-3.0-or-later
 ;;; Commentary:
 ;; Vterm owns rendering; the shared Claude bridge owns identity and status.
 ;;; Code:
 (require 'mwheel)
-(require 'emacs-agents-claude)
-(defvar emacs-agents-eat-profiles)
-(declare-function emacs-agents-eat-configs "emacs-agents-eat")
+(require 'mx-machina-claude)
+(defvar mx-machina-eat-profiles)
+(declare-function mx-machina-eat-configs "mx-machina-eat")
 (defvar evil-state)
 (defvar vterm-shell)
 (defvar vterm-environment)
@@ -20,57 +20,57 @@
 (declare-function vterm-send-key "vterm")
 (declare-function vterm-reset-cursor-point "vterm")
 (declare-function vterm-copy-mode "vterm")
-(autoload 'emacs-agents-transcript "emacs-agents-transcript" nil t)
+(autoload 'mx-machina-transcript "mx-machina-transcript" nil t)
 
-(defcustom emacs-agents-vterm-profiles 'inherit
+(defcustom mx-machina-vterm-profiles 'inherit
   "Claude profiles offered through vterm.
 The default `inherit' shares EAT profiles' commands and accounts, with
 identifiers suffixed by -vterm.  Alternatively supply profile alists, or nil
 to hide vterm.  Existing EAT profile identifiers are never changed."
-  :type '(choice (const inherit) (repeat alist)) :group 'emacs-agents)
-(defvar emacs-agents-vterm-setup-hook nil)
-(defvar-local emacs-agents-vterm--browsing nil)
-(defvar-local emacs-agents-vterm--evil-scrolling nil)
+  :type '(choice (const inherit) (repeat alist)) :group 'mx-machina)
+(defvar mx-machina-vterm-setup-hook nil)
+(defvar-local mx-machina-vterm--browsing nil)
+(defvar-local mx-machina-vterm--evil-scrolling nil)
 
-(defun emacs-agents-vterm-configs ()
+(defun mx-machina-vterm-configs ()
   "Return vterm profiles without loading the native module or launching agents."
-  (if (eq emacs-agents-vterm-profiles 'inherit)
+  (if (eq mx-machina-vterm-profiles 'inherit)
       (mapcar (lambda (config)
                 (let ((copy (copy-tree config)))
                   (setf (alist-get :identifier copy)
                         (intern (concat (symbol-name (map-elt config :identifier)) "-vterm")))
                   copy))
-              (emacs-agents-eat-configs))
-    (copy-tree emacs-agents-vterm-profiles)))
+              (mx-machina-eat-configs))
+    (copy-tree mx-machina-vterm-profiles)))
 
-(defun emacs-agents-vterm--read-position ()
+(defun mx-machina-vterm--read-position ()
   "Return the prompt position only when following current output."
-  (unless (or emacs-agents-vterm--browsing vterm-copy-mode)
+  (unless (or mx-machina-vterm--browsing vterm-copy-mode)
     (save-excursion (vterm-reset-cursor-point) (point))))
 
-(defun emacs-agents-vterm--navigate (key &optional control)
+(defun mx-machina-vterm--navigate (key &optional control)
   "Send navigation KEY with optional CONTROL modifier to Claude."
   (when vterm-copy-mode (vterm-copy-mode -1))
   (vterm-send-key key nil nil control))
 
-(defun emacs-agents-vterm-scroll-up ()
+(defun mx-machina-vterm-scroll-up ()
   "Read older messages in Claude's fullscreen history."
   (interactive)
   (if vterm-copy-mode
       (scroll-down-command)
-    (setq emacs-agents-vterm--browsing t)
-    (emacs-agents-vterm--navigate "<prior>")))
-(defun emacs-agents-vterm-scroll-down ()
+    (setq mx-machina-vterm--browsing t)
+    (mx-machina-vterm--navigate "<prior>")))
+(defun mx-machina-vterm-scroll-down ()
   "Read newer messages in Claude's fullscreen history."
   (interactive)
   (if vterm-copy-mode (scroll-up-command)
-    (emacs-agents-vterm--navigate "<next>")))
-(defun emacs-agents-vterm-latest ()
+    (mx-machina-vterm--navigate "<next>")))
+(defun mx-machina-vterm-latest ()
   "Resume following current output and allow read acknowledgment."
   (interactive)
-  (emacs-agents-vterm--navigate "<end>" t)
-  (setq emacs-agents-vterm--browsing nil))
-(defun emacs-agents-vterm-wheel (event)
+  (mx-machina-vterm--navigate "<end>" t)
+  (setq mx-machina-vterm--browsing nil))
+(defun mx-machina-vterm-wheel (event)
   "Send a page navigation for wheel EVENT in its target terminal."
   (interactive "e")
   (let ((window (posn-window (event-start event))))
@@ -79,70 +79,70 @@ to hide vterm.  Existing EAT profile identifiers are never changed."
         (if vterm-copy-mode
             (mwheel-scroll event)
           (if (memq (event-basic-type event) '(wheel-up mouse-4))
-              (emacs-agents-vterm-scroll-up)
-            (emacs-agents-vterm-scroll-down)))))))
-(defun emacs-agents-vterm-send-escape ()
+              (mx-machina-vterm-scroll-up)
+            (mx-machina-vterm-scroll-down)))))))
+(defun mx-machina-vterm-send-escape ()
   "Send Escape to Claude while leaving Evil state unchanged."
   (interactive)
-  (emacs-agents-vterm--navigate "<escape>")
-  (when emacs-agents-claude--turn-active
-    (funcall (emacs-agents-transport-callback emacs-agents-claude--transport)
+  (mx-machina-vterm--navigate "<escape>")
+  (when mx-machina-claude--turn-active
+    (funcall (mx-machina-transport-callback mx-machina-claude--transport)
              "live" "unknown")))
 
-(defvar emacs-agents-vterm-navigation-mode-map
+(defvar mx-machina-vterm-navigation-mode-map
   (let ((map (make-sparse-keymap)))
-    (dolist (binding '(("<prior>" . emacs-agents-vterm-scroll-up)
-                       ("<next>" . emacs-agents-vterm-scroll-down)
-                       ("<wheel-up>" . emacs-agents-vterm-wheel)
-                       ("<wheel-down>" . emacs-agents-vterm-wheel)
-                       ("<mouse-4>" . emacs-agents-vterm-wheel)
-                       ("<mouse-5>" . emacs-agents-vterm-wheel)
-                       ("C-<end>" . emacs-agents-vterm-latest)
-                       ("C-c C-b" . emacs-agents-vterm-latest)
-                       ("C-c ?" . emacs-agents-actions)
-                       ("C-c C-t" . emacs-agents-transcript)
+    (dolist (binding '(("<prior>" . mx-machina-vterm-scroll-up)
+                       ("<next>" . mx-machina-vterm-scroll-down)
+                       ("<wheel-up>" . mx-machina-vterm-wheel)
+                       ("<wheel-down>" . mx-machina-vterm-wheel)
+                       ("<mouse-4>" . mx-machina-vterm-wheel)
+                       ("<mouse-5>" . mx-machina-vterm-wheel)
+                       ("C-<end>" . mx-machina-vterm-latest)
+                       ("C-c C-b" . mx-machina-vterm-latest)
+                       ("C-c ?" . mx-machina-actions)
+                       ("C-c C-t" . mx-machina-transcript)
                        ("C-c C-r" . vterm-copy-mode)
-                       ("C-<escape>" . emacs-agents-vterm-send-escape)))
+                       ("C-<escape>" . mx-machina-vterm-send-escape)))
       (define-key map (kbd (car binding)) (cdr binding)))
     map))
-(defvar emacs-agents-vterm--navigation-maps
-  `((emacs-agents-vterm--evil-scrolling
+(defvar mx-machina-vterm--navigation-maps
+  `((mx-machina-vterm--evil-scrolling
      . ,(let ((map (make-sparse-keymap)))
-          (define-key map (kbd "C-u") #'emacs-agents-vterm-scroll-up)
-          (define-key map (kbd "C-d") #'emacs-agents-vterm-scroll-down)
+          (define-key map (kbd "C-u") #'mx-machina-vterm-scroll-up)
+          (define-key map (kbd "C-d") #'mx-machina-vterm-scroll-down)
           map))
-    (emacs-agents-vterm-navigation-mode . ,emacs-agents-vterm-navigation-mode-map)))
-(define-minor-mode emacs-agents-vterm-navigation-mode
+    (mx-machina-vterm-navigation-mode . ,mx-machina-vterm-navigation-mode-map)))
+(define-minor-mode mx-machina-vterm-navigation-mode
   "Provide managed Claude navigation independently of vterm and Evil maps."
-  :lighter (:eval (when emacs-agents-vterm--browsing " History:C-c C-b"))
+  :lighter (:eval (when mx-machina-vterm--browsing " History:C-c C-b"))
   (setq-local emulation-mode-map-alists
-              (delq 'emacs-agents-vterm--navigation-maps (copy-sequence emulation-mode-map-alists)))
-  (when emacs-agents-vterm-navigation-mode
-    (push 'emacs-agents-vterm--navigation-maps emulation-mode-map-alists)))
+              (delq 'mx-machina-vterm--navigation-maps (copy-sequence emulation-mode-map-alists)))
+  (when mx-machina-vterm-navigation-mode
+    (push 'mx-machina-vterm--navigation-maps emulation-mode-map-alists)))
 
-(defun emacs-agents-vterm-sync-evil-state ()
+(defun mx-machina-vterm-sync-evil-state ()
   "Reserve scrolling chords in normal state and resume rendering in insert."
-  (setq emacs-agents-vterm--evil-scrolling (memq evil-state '(normal motion)))
+  (setq mx-machina-vterm--evil-scrolling (memq evil-state '(normal motion)))
   (when (and (memq evil-state '(insert emacs)) vterm-copy-mode) (vterm-copy-mode -1)))
-(defun emacs-agents-vterm-setup-evil ()
+(defun mx-machina-vterm-setup-evil ()
   "Install buffer-local Evil integration."
   (when (bound-and-true-p evil-local-mode)
     (dolist (hook '(evil-normal-state-entry-hook evil-visual-state-entry-hook
                     evil-insert-state-entry-hook evil-emacs-state-entry-hook
                     evil-motion-state-entry-hook evil-operator-state-entry-hook))
-      (add-hook hook #'emacs-agents-vterm-sync-evil-state nil t))
-    (emacs-agents-vterm-sync-evil-state)))
+      (add-hook hook #'mx-machina-vterm-sync-evil-state nil t))
+    (mx-machina-vterm-sync-evil-state)))
 
-(defun emacs-agents-vterm--exited (buffer _event)
+(defun mx-machina-vterm--exited (buffer _event)
   "Report the terminal exit in BUFFER to the shared bridge."
   (when (buffer-live-p buffer)
     (with-current-buffer buffer
       (when (processp vterm--process)
-        (emacs-agents-claude--exited vterm--process)))))
+        (mx-machina-claude--exited vterm--process)))))
 
-(defun emacs-agents-vterm--launch (command prepare)
+(defun mx-machina-vterm--launch (command prepare)
   "Launch COMMAND in vterm and call PREPARE after setting its major mode."
-  (let ((exit-functions (cons #'emacs-agents-vterm--exited vterm-exit-functions)))
+  (let ((exit-functions (cons #'mx-machina-vterm--exited vterm-exit-functions)))
     (let ((vterm-shell (mapconcat #'shell-quote-argument command " "))
           (vterm-environment nil)
           (vterm-max-scrollback 10000)
@@ -154,7 +154,7 @@ to hide vterm.  Existing EAT profile identifiers are never changed."
       (vterm-mode))
     (setq-local vterm-kill-buffer-on-exit nil
                 vterm-exit-functions exit-functions
-                emacs-agents--read-position-function #'emacs-agents-vterm--read-position)
+                mx-machina--read-position-function #'mx-machina-vterm--read-position)
     ;; Upstream's sentinel reads buffer-local settings without selecting it.
     (let* ((process (get-buffer-process (current-buffer)))
            (sentinel (process-sentinel process)))
@@ -164,15 +164,15 @@ to hide vterm.  Existing EAT profile identifiers are never changed."
                                          (buffer-live-p (process-buffer proc)))
                                 (with-current-buffer (process-buffer proc)
                                   (funcall sentinel proc event))))))
-    (emacs-agents-vterm-navigation-mode 1)))
+    (mx-machina-vterm-navigation-mode 1)))
 
-(defun emacs-agents-vterm-start (profile directory conversation callback)
+(defun mx-machina-vterm-start (profile directory conversation callback)
   "Start PROFILE in vterm in DIRECTORY, restoring CONVERSATION via CALLBACK."
   (unless (require 'vterm nil t) (user-error "Install vterm and its native module to use this interface"))
-  (emacs-agents-claude-start
+  (mx-machina-claude-start
    profile (seq-find (lambda (config) (equal profile (symbol-name (map-elt config :identifier))))
-                     (emacs-agents-vterm-configs))
-   directory conversation callback 'vterm #'emacs-agents-vterm--launch 'emacs-agents-vterm-setup-hook))
+                     (mx-machina-vterm-configs))
+   directory conversation callback 'vterm #'mx-machina-vterm--launch 'mx-machina-vterm-setup-hook))
 
-(provide 'emacs-agents-vterm)
-;;; emacs-agents-vterm.el ends here
+(provide 'mx-machina-vterm)
+;;; mx-machina-vterm.el ends here
