@@ -2,6 +2,8 @@
 
 [![Checks](https://github.com/eliraz-refael/m-x-machina/actions/workflows/check.yml/badge.svg)](https://github.com/eliraz-refael/m-x-machina/actions/workflows/check.yml)
 
+**[Website & interactive tour](https://eliraz-refael.github.io/m-x-machina/)**
+
 Persistent coding-agent sessions for Emacs: a dashboard, a worktree, and the same
 conversation after restarting your editor. Built for the Emacs community, with
 optional Evil and Doom bindings.
@@ -681,3 +683,19 @@ the workflow a change enables and how its behavior can be checked.
 
 GNU General Public License, version 3 or (at your option) any later version.
 See [LICENSE](LICENSE).
+
+## Website
+
+The [project website](https://eliraz-refael.github.io/m-x-machina/) includes an
+interactive, illustrative Emacs tour and setup instructions. Its static sources
+live in [`site/`](site/); no build step is required.
+
+Preview locally from the repository root:
+
+```sh
+python3 -m http.server 8000 --bind 127.0.0.1 --directory site
+```
+
+Open `http://localhost:8000`. Website changes go through a PR; after merging to
+`main`, the `Deploy website` workflow publishes `site/` to GitHub Pages. The
+workflow also supports a manual deployment from `main`.
