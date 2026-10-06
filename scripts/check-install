@@ -1,0 +1,193 @@
+#!/usr/bin/env python3
+# SPDX-License-Identifier: GPL-3.0-or-later
+"""Boot plain Emacs or a freshly installed Doom in a disposable home (macOS/Linux)."""
+import argparse
+import errno
+import fcntl
+import json
+import os
+from pathlib import Path
+import pty
+import runpy
+import select
+import shutil
+import signal
+import struct
+import subprocess
+import sys
+import tempfile
+import termios
+import time
+
+ROOT = Path(__file__).resolve().parent.parent
+DOOM_REVISION = "59cdaa32ae933469bb6a1fb3cadee8a988c15968"
+
+
+def isolated_environment(root, emacs):
+    # Allowlist instead of inheriting Doom profiles, credentials, agent IDs,
+    # package paths, injected Lisp, or Git configuration from the caller.
+    env = {key: value for key, value in os.environ.items()
+           if key in ("PATH", "LANG", "LC_ALL", "SSL_CERT_FILE", "SSL_CERT_DIR",
+                      "GIT_SSL_CAINFO", "NIX_SSL_CERT_FILE", "TMPDIR")}
+    for key, relative in {
+        "HOME": "home", "XDG_CONFIG_HOME": "home/.config",
+        "XDG_DATA_HOME": "home/.local/share", "XDG_CACHE_HOME": "home/.cache",
+        "XDG_STATE_HOME": "home/.local/state", "DOOMDIR": "config",
+        "DOOMLOCALDIR": "local", "EMACSDIR": "doom",
+    }.items():
+        directory = root / relative
+        directory.mkdir(parents=True, exist_ok=True)
+        env[key] = str(directory)
+    env.update(EMACS=emacs, TERM="xterm-256color", GIT_CONFIG_GLOBAL=os.devnull,
+               GIT_CONFIG_NOSYSTEM="1", GIT_TERMINAL_PROMPT="0")
+    env["PATH"] = str(Path(emacs).parent) + os.pathsep + env.get("PATH", "")
+    return env
+
+
+def run(command, root, env, timeout=900):
+    print("+ " + " ".join(map(str, command)), flush=True)
+    process = subprocess.Popen(list(map(str, command)), cwd=root, env=env,
+                               stdin=subprocess.DEVNULL, start_new_session=True)
+    try:
+        code = process.wait(timeout=timeout)
+        if code:
+            raise subprocess.CalledProcessError(code, command)
+    finally:
+        try:
+            os.killpg(process.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+        process.wait()
+
+
+def boot(emacs, init, root, env, phase):
+    """Use a real interactive startup, not --batch (which skips init files)."""
+    report = root / f"{phase}.json"
+    env = dict(env, MXM_INSTALL_RESULT=str(report))
+    probe = json.dumps(str(root / "m-x-machina/test/installation/probe.el"))
+    command = [emacs, "-nw", "--no-site-file", "--no-site-lisp", "--no-splash",
+               "--init-directory", str(init), "--eval",
+               '(add-hook \'window-setup-hook (lambda () '
+               '(run-at-time 0 nil (lambda () '
+               f'(condition-case err (load {probe} nil t) '
+               '(error (message "%s" (error-message-string err)) (kill-emacs 1)))))))']
+    master, slave = pty.openpty()
+    fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack("HHHH", 40, 120, 0, 0))
+    process = None
+    try:
+        process = subprocess.Popen(command, cwd=root, env=env, stdin=slave,
+                                   stdout=slave, stderr=slave, start_new_session=True,
+                                   preexec_fn=lambda: fcntl.ioctl(0, termios.TIOCSCTTY, 0))
+        os.close(slave)
+        slave = None
+        deadline = time.monotonic() + 180
+        with (root / f"{phase}.terminal.log").open("wb") as log:
+            while process.poll() is None:
+                if time.monotonic() > deadline:
+                    raise RuntimeError(f"Interactive startup timed out; see {log.name}")
+                if select.select([master], [], [], 0.2)[0]:
+                    try:
+                        chunk = os.read(master, 65536)
+                    except OSError as error:
+                        if error.errno != errno.EIO:
+                            raise
+                        break
+                    if not chunk:
+                        break
+                    log.write(chunk)
+                    log.flush()
+        code = process.wait(timeout=10)
+        data = json.loads(report.read_text()) if report.exists() else {}
+        if code or data.get("ok") is not True:
+            raise RuntimeError(f"{phase} failed (exit {code}): {data}; see {root}")
+        print(f"PASS {phase}: {json.dumps(data)}", flush=True)
+    except (RuntimeError, OSError, subprocess.SubprocessError):
+        log = root / f"{phase}.terminal.log"
+        if log.exists():
+            print(log.read_text(errors="replace")[-4000:], file=sys.stderr)
+        raise
+    finally:
+        if process is not None:
+            # Also retire any native-compilation workers in this test's group.
+            try:
+                os.killpg(process.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+            process.wait()
+        os.close(master)
+        if slave is not None:
+            os.close(slave)
+
+
+def install_doom(root, env):
+    doom = root / "doom"
+    run(["git", "-C", doom, "init", "-q"], root, env)
+    run(["git", "-C", doom, "fetch", "--depth=1",
+         "https://github.com/doomemacs/core.git", DOOM_REVISION], root, env)
+    run(["git", "-C", doom, "checkout", "-q", "--detach", "FETCH_HEAD"], root, env)
+    config = root / "config"
+    (config / "init.el").write_text(
+        ";;; init.el -*- lexical-binding: t; -*-\n"
+        "(doom! :editor evil :term vterm :config (default +bindings))\n")
+    (config / "config.el").write_text(
+        ";;; config.el -*- lexical-binding: t; -*-\n"
+        f'(load! {json.dumps(str(root / "m-x-machina/examples/doom.el"))})\n')
+    (config / "packages.el").write_text(
+        ";;; packages.el -*- lexical-binding: t; -*-\n"
+        f'(load! {json.dumps(str(root / "m-x-machina/examples/doom-packages.el"))})\n')
+    run([doom / "bin/doom", "--force", "install", "--no-env"], root, env)
+    return doom
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--kind", choices=("plain", "plain-adapters", "doom"), default="plain")
+    parser.add_argument("--emacs", default="emacs")
+    parser.add_argument("--keep", action="store_true", help="Keep disposable state/logs for inspection")
+    args = parser.parse_args()
+    emacs = shutil.which(args.emacs)
+    if not emacs:
+        raise RuntimeError(f"Emacs executable not found: {args.emacs}")
+    root = Path(tempfile.mkdtemp(prefix="mxm-install-"))
+    print(f"Disposable installation: {root}", flush=True)
+    try:
+        env = isolated_environment(root, emacs)
+        env.update(MXM_INSTALL_ROOT=str(root), MXM_INSTALL_KIND=args.kind)
+        for folder in ("lisp", "scripts", "examples", "test"):
+            shutil.copytree(ROOT / folder, root / "m-x-machina" / folder,
+                            ignore=shutil.ignore_patterns("*.elc", "*.eln", "__pycache__"))
+        repo = root / "worktree"
+        run(["git", "init", "-q", "-b", "main", repo], root, env)
+        run(["git", "-C", repo, "-c", "user.name=Installation fixture",
+             "-c", "user.email=fixture@example.invalid", "-c", "commit.gpgsign=false",
+             "commit", "--allow-empty", "-qm", "Fixture"], root, env)
+        if args.kind == "doom":
+            init = install_doom(root, env)
+        else:
+            init = root / "home/.config/emacs"
+            init.mkdir(parents=True)
+            paths = []
+            if args.kind == "plain-adapters":
+                checks = runpy.run_path(str(ROOT / "scripts/check"))
+                paths = checks["dependencies"](checks["GROUPS"]["all"], root / "dependencies",
+                                                True, True, env)
+            (init / "init.el").write_text(
+                ";;; init.el -*- lexical-binding: t; -*-\n"
+                + "".join(f"(add-to-list 'load-path {json.dumps(str(path))})\n" for path in paths)
+                + f'(add-to-list \'load-path {json.dumps(str(root / "m-x-machina/lisp"))})\n'
+                "(require 'mx-machina)\n")
+        boot(emacs, init, root, env, "first-boot")
+        boot(emacs, init, root, env, "restart")
+    finally:
+        if args.keep:
+            print(f"Kept installation and logs: {root}", flush=True)
+        else:
+            shutil.rmtree(root)
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except (RuntimeError, OSError, subprocess.SubprocessError) as error:
+        print(f"INSTALL CHECK FAILED: {error}", file=sys.stderr)
+        sys.exit(1)

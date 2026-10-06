@@ -153,15 +153,19 @@ This work can proceed alongside recovery; it gates a stable release.
   88 core tests on Linux 29.1/30.2/31.1 and macOS 31.1, plus all 128 tests on Linux
   29.1/31.1. All 17 Lisp files compile with warnings as errors. `main` requires the
   complete matrix through the `Required checks` gate, including for maintainers.
-- [ ] **REL-2 — Installation and dependency compatibility.** Test a clean plain
+- [x] **REL-2 — Installation and dependency compatibility.** Test a clean plain
   Emacs setup and Doom setup; document native vterm installation and supported
   dependency versions. Check newer agent-shell/Claude versions deliberately.
   **Done when:** setup does not depend on local build paths or account-specific
   configuration, and missing optional packages yield actionable messages.
-  **Partial 2026-10-04:** fresh pinned ACP/EAT/vterm dependencies pass local checks;
-  standalone loading and the optional Doom example have smoke coverage. Corrected
-  the documented agent-shell dependency set to the actual tested 0.83.4/ACP
-  0.15.2/shell-maker 0.97.5. A complete isolated Doom boot remains outstanding.
+  **Completed 2026-10-06:** `scripts/check-install` boots and restarts a real
+  interactive plain Emacs or freshly installed Doom in a disposable home.
+  Checks cover the sidebar/board, saved fixture identity, missing-package
+  guidance, Doom Evil/leader bindings, pinned ACP/EAT dependencies and native
+  vterm compilation/loading. The [installation guide](installation.md) and
+  optional pinned Doom package bundle document the tested baseline. CI requires
+  these checks. Real Claude/provider compatibility and future dependency updates
+  remain explicit pilots; this does not complete REC-4 or MSG-2.
 - [ ] **REL-3 — Persistence and upgrade checks.** Exercise upgrades from supported
   schemas, backups, registry ownership, interrupted writes and retained history.
   **Done when:** recovery is documented and verified without erasing conversation

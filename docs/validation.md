@@ -17,8 +17,9 @@ Emacs 29.1 built-in transaction macro commits on body errors.
 The release runner (`python3 scripts/check --suite all --fetch-deps --build-vterm`)
 uses a disposable checkout and isolated Emacs state. An injected compiler warning
 was verified to fail the runner. Installation smoke checks exercise plain Emacs
-and loading the optional Doom example without Doom installed; this is not a full
-Doom boot test or real-provider restart pilot. No personal configuration, installed
+and loading the optional Doom example without Doom installed. Separate real
+startup checks were added on 2026-10-06, described below; a real-provider restart
+pilot remains outstanding. No personal configuration, installed
 package or live Emacs session was changed. See [testing](testing.md) for reproduction.
 
 The suite exercises:
@@ -274,3 +275,28 @@ on `load-path`, reopen a synthetic registry produced by the pre-rename code,
 and call an old-style message service from the updated CLI. Default storage,
 profile IDs, conversation IDs and CLI environment variables stay unchanged.
 These checks run in disposable copies without loading personal configuration.
+
+## Clean installation checks — 2026-10-06
+
+`scripts/check-install` exercises normal interactive startup through a private
+pseudo-terminal, with an isolated HOME, XDG directories, Doom configuration,
+package state and registry. It does not use `--batch` to approximate startup.
+The generated configuration follows the installation guide; the Doom case
+loads the checked-in `examples/doom-packages.el` bundle and `examples/doom.el`.
+
+Local checks on macOS passed plain startup/restart on Emacs 30.1 and 31.1,
+and both plain-with-adapters and a new Doom 2.2.4 installation on Emacs 31.1.
+Each boot verifies sidebar, board and dashboard access; a second boot recovers
+the same saved fixture agent without starting it. The adapter setups load
+agent-shell, ACP, shell-maker, EAT and the compiled native vterm module from
+the disposable installation. Doom additionally checks Evil motion state,
+sidebar RET/j bindings and the leader binding. The plain baseline verifies
+actionable errors for absent EAT/vterm packages.
+
+The fresh Doom check uses core revision `59cdaa32ae933469bb6a1fb3cadee8a988c15968`
+and its module/package pins with the adapter revisions in `test/dependencies.json`.
+Doom fetches upstream recipe indexes: this is not a fully hermetic distribution.
+No provider authentication, real model conversation or personal Doom configuration
+is involved. See [installation](installation.md#reproduce-the-installation-checks)
+for commands and the tested scope. CI adds plain startup to the existing core
+matrix and requires Linux Emacs 31.1 installation jobs for plain adapters and Doom.
