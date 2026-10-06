@@ -1,18 +1,38 @@
 ;;; mx-machina-claude.el --- Shared Claude terminal lifecycle -*- lexical-binding: t; -*-
+
+;; Copyright (C) 2026 Eliraz Kedmi
+;; Author: Eliraz Kedmi <eliraz.kedmi@gmail.com>
+;; Assisted-by: Codex:gpt-6
+;; Maintainer: Eliraz Kedmi <eliraz.kedmi@gmail.com>
 ;; SPDX-License-Identifier: GPL-3.0-or-later
+;; This file is part of M-x Machina.
+;;
+;; M-x Machina is free software: you can redistribute it and/or modify
+;; it under the terms of the GNU General Public License as published by
+;; the Free Software Foundation, either version 3 of the License, or
+;; (at your option) any later version.
+;;
+;; M-x Machina is distributed in the hope that it will be useful,
+;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;; GNU General Public License for more details.
+;;
+;; You should have received a copy of the GNU General Public License
+;; along with M-x Machina.  If not, see <https://www.gnu.org/licenses/>.
+
 ;;; Commentary:
 ;; Conversation identity, account environment and hook observations are shared
 ;; by terminal adapters.  No terminal output is parsed for agent activity.
 ;;; Code:
 (require 'mx-machina-transport)
 (require 'mx-machina-store)
+(require 'mx-machina-resources)
 (require 'json)
 (require 'map)
 (require 'seq)
 (declare-function mx-machina--transport-fail "mx-machina-backend")
 (defconst mx-machina-claude--hook-script
-  (expand-file-name "../scripts/claude-events.py"
-                    (file-name-directory (or load-file-name buffer-file-name)))
+  (mx-machina--resource-file "scripts/claude-events.py")
   "Helper invoked by Claude's per-session hooks.")
 (defconst mx-machina-claude--events
   '("SessionStart" "UserPromptSubmit" "PreToolUse" "PermissionRequest"

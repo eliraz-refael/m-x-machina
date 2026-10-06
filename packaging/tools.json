@@ -1,0 +1,10 @@
+{
+  "package-build": {
+    "url": "https://github.com/melpa/package-build.git",
+    "commit": "fe9592c844d7a8834e7cc74dc01c4747e2b90c5e"
+  },
+  "package-lint": {
+    "url": "https://github.com/purcell/package-lint.git",
+    "commit": "1865be780a16098f972fef50a52b21ca6ee04df9"
+  }
+}

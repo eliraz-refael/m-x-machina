@@ -1,5 +1,25 @@
 ;;; mx-machina-recovery.el --- Explicit worktree recovery -*- lexical-binding: t; -*-
+
+;; Copyright (C) 2026 Eliraz Kedmi
+;; Author: Eliraz Kedmi <eliraz.kedmi@gmail.com>
+;; Assisted-by: Codex:gpt-6
+;; Maintainer: Eliraz Kedmi <eliraz.kedmi@gmail.com>
 ;; SPDX-License-Identifier: GPL-3.0-or-later
+;; This file is part of M-x Machina.
+;;
+;; M-x Machina is free software: you can redistribute it and/or modify
+;; it under the terms of the GNU General Public License as published by
+;; the Free Software Foundation, either version 3 of the License, or
+;; (at your option) any later version.
+;;
+;; M-x Machina is distributed in the hope that it will be useful,
+;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;; GNU General Public License for more details.
+;;
+;; You should have received a copy of the GNU General Public License
+;; along with M-x Machina.  If not, see <https://www.gnu.org/licenses/>.
+
 ;;; Commentary:
 ;; Change only a stopped agent's saved checkout association after confirmation.
 ;; Keep its backend identity and leave Git and conversation files untouched.
@@ -126,7 +146,7 @@ Keep the same profile and conversation ID; never create a new conversation."
                      (list (mx-machina-session-directory session) (mx-machina-session-branch session)))
         (user-error "Checkout changed; use W to review the association before retrying"))
       (unless (yes-or-no-p
-               (format "Retry %s with profile %s and saved conversation %s? Confirm the original backend/account configuration is restored. "
+               (format "Confirm the original backend/account configuration is restored: retry %s with profile %s and saved conversation %s? "
                        (mx-machina-session-name session) (mx-machina-session-profile session) conversation))
         (user-error "Retry cancelled"))
       (unless (equal config (mx-machina-recovery--profile session))

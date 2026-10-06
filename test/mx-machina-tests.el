@@ -668,7 +668,7 @@
       (with-temp-buffer
         (should (= 0 (call-process
                       (expand-file-name invocation-name invocation-directory) nil t nil
-                      "--batch" "-Q" "-L" (expand-file-name "lisp" mx-machina-test-root)
+                      "--batch" "-Q" "-L" (file-name-directory (locate-library "mx-machina-store"))
                       "--eval" (prin1-to-string
                                 `(progn (require 'mx-machina-store)
                                         (setq create-lockfiles nil mx-machina-directory ,mx-machina-directory)

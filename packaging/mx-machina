@@ -1,0 +1,5 @@
+(mx-machina
+ :fetcher github
+ :repo "eliraz-refael/m-x-machina"
+ :files (:defaults ("scripts" "scripts/claude-events.py" "scripts/mxm"
+                             "scripts/emacs-agents")))

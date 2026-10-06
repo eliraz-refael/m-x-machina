@@ -1,0 +1,123 @@
+#!/usr/bin/env python3
+# SPDX-License-Identifier: GPL-3.0-or-later
+"""Lint, build a real MELPA archive, install it, and test without checkout resources."""
+import argparse
+import json
+import os
+from pathlib import Path
+import runpy
+import shutil
+import subprocess
+import sys
+import tarfile
+import tempfile
+
+ROOT = Path(__file__).resolve().parent.parent
+CHECK = runpy.run_path(str(ROOT / "scripts/check"))
+INSTALL = runpy.run_path(str(ROOT / "scripts/check-install"))
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--emacs", default=os.environ.get("EMACS", "emacs"))
+    parser.add_argument("--fetch-deps", action="store_true")
+    parser.add_argument("--all-transports", action="store_true")
+    parser.add_argument("--build-vterm", action="store_true")
+    parser.add_argument("--output", type=Path, default=ROOT / ".cache/package")
+    args = parser.parse_args()
+    emacs = shutil.which(args.emacs)
+    if not emacs:
+        raise RuntimeError(f"Emacs executable not found: {args.emacs}")
+    with tempfile.TemporaryDirectory(prefix="mxm-package-") as temporary:
+        root = Path(temporary)
+        env = INSTALL["isolated_environment"](root, emacs)
+        run = lambda command, cwd=root: INSTALL["run"](command, cwd, env)
+        tools = CHECK["dependencies"](
+            ["package-build", "package-lint"], ROOT / ".cache/package-tools",
+            args.fetch_deps, False, env,
+            pins=json.loads((ROOT / "packaging/tools.json").read_text()))
+        deps = CHECK["dependencies"](
+            list(dict.fromkeys(["compat"] + (CHECK["GROUPS"]["all"] if args.all_transports else []))),
+            ROOT / ".cache/test-deps", args.fetch_deps, args.build_vterm, env)
+        source = root / "working/mx-machina"
+        # Copy only package inputs, not personal files or other untracked work.
+        for folder in ("lisp", "scripts"):
+            shutil.copytree(ROOT / folder, source / folder,
+                            ignore=shutil.ignore_patterns("*.elc", "*.eln", "__pycache__"))
+        shutil.copy(ROOT / "LICENSE", source / "LICENSE")
+        fixtures = root / "fixtures"
+        for folder in ("test", "examples"):
+            shutil.copytree(ROOT / folder, fixtures / folder,
+                            ignore=shutil.ignore_patterns("*.elc", "*.eln", "__pycache__"))
+        tests = fixtures / "test"
+        env.update(EMACS_AGENTS_TEST_STATE=str(root / "state"),
+                   EMACS_AGENTS_TEST_SUITE="all" if args.all_transports else "core")
+        base = [emacs, "--batch", "-Q", "-l", tests / "bootstrap.el"]
+        lint = base + ["-L", tools[1], "-l", tests / "packaging/lint.el"]
+        run(lint, source)
+        # package-build is allowed to reset/checkout this disposable repository.
+        run(["git", "init", "-q", "-b", "main", source])
+        run(["git", "-C", source, "add", "."])
+        run(["git", "-C", source, "-c", "user.name=Package check", "-c",
+             "user.email=package-check@example.invalid", "-c", "commit.gpgsign=false",
+             "commit", "-qm", "Package fixture"])
+        run(["git", "-C", source, "update-ref", "refs/remotes/origin/HEAD", "HEAD"])
+        recipes = root / "recipes"
+        recipes.mkdir()
+        shutil.copy(ROOT / "packaging/mx-machina", recipes / "mx-machina")
+        run(base + ["-L", deps[0], "-L", tools[0], "-l", tests / "packaging/build.el"])
+        archives = list((root / "archive").glob("*.tar"))
+        if len(archives) != 1:
+            raise RuntimeError(f"Expected one package archive, got {archives}")
+        archive = archives[0]
+        expected = {path.name for path in (source / "lisp").glob("*.el")}
+        expected.update({"mx-machina-pkg.el", "scripts/mxm", "scripts/emacs-agents",
+                         "scripts/claude-events.py"})
+        with tarfile.open(archive) as packed:
+            actual = {str(Path(member.name).relative_to(archive.stem))
+                      for member in packed.getmembers() if member.isfile()}
+        if actual != expected:
+            raise RuntimeError(f"Unexpected archive files: missing {expected - actual}; extra {actual - expected}")
+        print(f"ARCHIVE {archive.name}: {len(actual)} expected files", flush=True)
+        # Destroy build sources before installation.  No fallback to lisp/ or
+        # scripts/ in a checkout can make the following tests pass accidentally.
+        shutil.rmtree(root / "working")
+        env["MXM_PACKAGE_ARCHIVE"] = str(archive)
+        run(base + ["--eval", '(progn (require \'package) (setq package-archives nil '
+                    'byte-compile-error-on-warn t) '
+                    '(package-install-file (getenv "MXM_PACKAGE_ARCHIVE")))'])
+        installed = list((root / "state/elpa").glob("mx-machina-*"))
+        if len(installed) != 1:
+            raise RuntimeError(f"Unexpected installed packages: {installed}")
+        for name in expected:
+            if name.endswith(".el") and name != "mx-machina-pkg.el":
+                if not (installed[0] / name).with_suffix(".elc").is_file():
+                    raise RuntimeError(f"Archive library did not compile: {name}")
+        active = base + ["-l", tests / "packaging/activate.el"]
+        run(active + ["-l", tests / "packaging/probe.el"])
+        command = active[:]
+        for path in deps:
+            command += ["-L", path]
+        if args.all_transports:
+            command += ["--eval", '(require \'vterm-module)']
+        for group in CHECK["CORE"]:
+            # Checkout installation has its own CI job; here package.el and the
+            # probe above verify installation and generated autoloads instead.
+            if group == "install" or (group == "messaging" and args.all_transports):
+                continue
+            command += ["-l", tests / f"mx-machina-{group}-tests.el"]
+        if args.all_transports:
+            command += ["-l", tests / "mx-machina-messaging-integration-tests.el"]
+        run(command + ["-f", "ert-run-tests-batch-and-exit"], fixtures)
+        output = args.output.resolve()
+        output.mkdir(parents=True, exist_ok=True)
+        shutil.copy(archive, output / archive.name)
+        print(f"PASS: installed archive; saved {output / archive.name}", flush=True)
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except (RuntimeError, OSError, subprocess.SubprocessError) as error:
+        print(f"PACKAGE CHECK FAILED: {error}", file=sys.stderr)
+        sys.exit(1)

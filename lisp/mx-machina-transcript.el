@@ -1,5 +1,25 @@
 ;;; mx-machina-transcript.el --- Read and copy saved Claude conversations -*- lexical-binding: t; -*-
+
+;; Copyright (C) 2026 Eliraz Kedmi
+;; Author: Eliraz Kedmi <eliraz.kedmi@gmail.com>
+;; Assisted-by: Codex:gpt-6
+;; Maintainer: Eliraz Kedmi <eliraz.kedmi@gmail.com>
 ;; SPDX-License-Identifier: GPL-3.0-or-later
+;; This file is part of M-x Machina.
+;;
+;; M-x Machina is free software: you can redistribute it and/or modify
+;; it under the terms of the GNU General Public License as published by
+;; the Free Software Foundation, either version 3 of the License, or
+;; (at your option) any later version.
+;;
+;; M-x Machina is distributed in the hope that it will be useful,
+;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;; GNU General Public License for more details.
+;;
+;; You should have received a copy of the GNU General Public License
+;; along with M-x Machina.  If not, see <https://www.gnu.org/licenses/>.
+
 ;;; Commentary:
 ;; A snapshot of user/assistant text from the current session's saved JSONL.
 ;; Unlike a live terminal screen this buffer stays still during text selection.
@@ -27,7 +47,7 @@
     (remove-hook 'mx-machina-backend-event-hook #'mx-machina-transcript--notice)))
 
 (defun mx-machina-transcript--notice (transport kind _data)
-  "Mark snapshots stale on new messages from their current TRANSPORT."
+  "Mark snapshots stale when event KIND is a message from current TRANSPORT."
   (when (eq kind 'message)
     (maphash
      (lambda (id entry)

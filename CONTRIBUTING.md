@@ -24,6 +24,12 @@ See [testing](docs/testing.md) for dependencies and isolation. The offline fixtu
 need no model account. Preserve session identity, drafts, permission prompts and
 saved history; use explicit operations for destructive changes.
 
+Packaging changes also require the [archive check](packaging/README.md):
+
+```sh
+python3 scripts/check-package --fetch-deps --all-transports --build-vterm
+```
+
 ## Pull requests and merging
 
 - All changes to `main` go through a pull request, including maintainer changes.

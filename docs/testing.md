@@ -73,11 +73,17 @@ The complete hosted matrix [passed on 2026-10-04](https://github.com/eliraz-refa
 88 core tests per core job and 128 tests per full transport job, with all 17 Lisp
 files compiled using warnings as errors. Results and limits live in `validation.md`.
 
-The optional Doom example is smoke-tested in plain Emacs without Doom installed.
-This verifies that optional integrations stay optional; it does **not** establish
-a successful full Doom installation or Evil ergonomics. Those checks and the
-real-provider restart/permission pilot remain release work. No user's running
-Doom is restarted or changed by these checks.
+[Installation checks](installation.md#reproduce-the-installation-checks) also
+boot and restart fresh plain Emacs and Doom installations, including Evil keys
+and native vterm loading. The real-provider restart/permission pilot remains
+release work. No user's running Doom is restarted or changed by these checks.
+
+The required archive jobs run `scripts/check-package` on Linux Emacs 29.1 and
+31.1. They lint, build the MELPA recipe, install the archive, check generated
+autoloads and bytecode, and run all transport regressions against installed
+resources with the build checkout removed. Checkout-only installation tests are
+covered by the existing jobs. See [packaging](../packaging/README.md) for tool
+pins, the seven documented optional-integration lint exceptions and reproduction.
 
 When updating dependencies, edit the pins deliberately, rerun the full suite, and
 record versions and results. Test dependency upgrades in a fresh Emacs: reloading

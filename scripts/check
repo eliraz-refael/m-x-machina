@@ -23,8 +23,9 @@ def run(command, **kwargs):
     subprocess.run(list(map(str, command)), check=True, timeout=900, **kwargs)
 
 
-def dependencies(names, cache, fetch, build_vterm, env):
-    pins = json.loads((ROOT / "test/dependencies.json").read_text())
+def dependencies(names, cache, fetch, build_vterm, env, pins=None):
+    if pins is None:
+        pins = json.loads((ROOT / "test/dependencies.json").read_text())
     paths = []
     for name in names:
         pin = pins[name]

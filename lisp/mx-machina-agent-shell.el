@@ -1,5 +1,25 @@
 ;;; mx-machina-agent-shell.el --- Structured interactive adapter -*- lexical-binding: t; -*-
+
+;; Copyright (C) 2026 Eliraz Kedmi
+;; Author: Eliraz Kedmi <eliraz.kedmi@gmail.com>
+;; Assisted-by: Codex:gpt-6
+;; Maintainer: Eliraz Kedmi <eliraz.kedmi@gmail.com>
 ;; SPDX-License-Identifier: GPL-3.0-or-later
+;; This file is part of M-x Machina.
+;;
+;; M-x Machina is free software: you can redistribute it and/or modify
+;; it under the terms of the GNU General Public License as published by
+;; the Free Software Foundation, either version 3 of the License, or
+;; (at your option) any later version.
+;;
+;; M-x Machina is distributed in the hope that it will be useful,
+;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;; GNU General Public License for more details.
+;;
+;; You should have received a copy of the GNU General Public License
+;; along with M-x Machina.  If not, see <https://www.gnu.org/licenses/>.
+
 ;;; Commentary:
 ;; agent-shell 0.83.4 compatibility boundary.  Guard all conversation creation
 ;; and restoration requests: upstream can otherwise fall back to new sessions.
@@ -143,7 +163,7 @@ listing does not change identity.  Guard the subsequent load/new/fork instead."
              (when (eq kind 'error) (map-nested-elt event '(:data :message)))))))))))
 
 (defun mx-machina--transport-event (transport event)
-  "Translate EVENT into lifecycle and backend-neutral display observations."
+  "Translate EVENT from TRANSPORT into lifecycle and display observations."
   (mx-machina--transport-lifecycle-event transport event)
   (when (and (mx-machina-transport-ready transport)
              (not (mx-machina-transport-stopping transport))
