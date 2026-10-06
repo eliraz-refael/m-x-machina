@@ -1,6 +1,6 @@
 # Installation
 
-M-x Machina is loaded from a Git checkout. It is not currently distributed through
+M-x Machina can be loaded from a Git checkout or a locally built package archive. It is not currently distributed through
 ELPA or MELPA. Its sidebar works without an agent package; choose an interface
 before starting a real agent.
 
@@ -95,6 +95,21 @@ source Org file so tangling does not discard the load form. Do not put the
 With Evil enabled, `SPC o a a` opens the sidebar, `SPC o a n` creates an agent,
 `SPC o a b` opens the board, and `SPC o a ?` shows contextual actions. The
 `M-x mx-machina` commands work independently of those leader bindings.
+
+## Local package archives
+
+The [MELPA preparation guide](../packaging/README.md) explains how to build and
+test an archive locally. In plain Emacs, install the resulting `.tar` with
+`M-x package-install-file`, then restart and run `M-x mx-machina`. Generated
+autoloads make the command available without a checkout load-path entry.
+Install the optional interfaces separately as above. Avoid keeping a second
+checkout on `load-path` when testing an archive.
+
+The archive includes the runtime scripts and optional `mx-machina-doom` library.
+When your package manager installs M-x Machina, `(require 'mx-machina-doom)` in
+Doom's `config.el` enables its bindings. The existing checkout-based
+`examples/doom.el` remains a supported loader. Examples and test fixtures are
+kept in the source repository, not bundled in the archive.
 
 ## Building vterm
 

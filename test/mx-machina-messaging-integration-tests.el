@@ -200,7 +200,7 @@
   ;; Old processes keep the legacy path in their environment.  Its launcher
   ;; must preserve the caller's ancestry so automatic sender attribution works.
   (let ((mx-machina-messaging--script
-         (expand-file-name "scripts/emacs-agents" mx-machina-test-root)))
+         (mx-machina--resource-file "scripts/emacs-agents")))
     (mx-machina-messaging-test-peer t)))
 
 (ert-deftest mx-machina-messaging-cli-reaches-pre-rename-server ()

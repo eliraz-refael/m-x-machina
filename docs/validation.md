@@ -300,3 +300,29 @@ No provider authentication, real model conversation or personal Doom configurati
 is involved. See [installation](installation.md#reproduce-the-installation-checks)
 for commands and the tested scope. CI adds plain startup to the existing core
 matrix and requires Linux Emacs 31.1 installation jobs for plain adapters and Doom.
+
+## MELPA archive preparation — 2026-10-06
+
+`scripts/check-package --all-transports` built the recipe with pinned upstream
+package-build, installed its tarball through `package-install-file`, and passed
+126 regression tests on macOS Emacs 31.1 using the installed bytecode and scripts.
+The isolated source snapshot was deleted before installation. The archive holds
+18 production Lisp libraries, the generated package descriptor and three runtime
+scripts; fresh-process checks verified generated autoloads and optional loading.
+An additional archive run on Emacs 30.1 passed its 85 core regression tests.
+The checkout core check passed 89 tests and compiled all 18 libraries.
+
+The compiled archive also booted and restarted in the disposable Doom 2.2.4
+installation from the installation checks above, with sidebar Evil navigation,
+leader bindings and saved fixture identity verified. This reused that isolated
+Doom dependency installation; it did not change the maintainer's configuration.
+
+Package-lint 0.26 at `1865be780a16098f972fef50a52b21ca6ee04df9` reports only
+[seven documented delayed-integration warnings](../packaging/README.md#documented-package-lint-exceptions).
+Checkdoc passes with spelling and the experimental verb heuristic disabled;
+byte-compilation treats warnings as errors. The required archive CI job covers
+Linux Emacs 29.1 and 31.1, including all optional transports.
+
+These are local snapshot builds, not an upstream MELPA submission or a stable
+release. Public-maintenance duration, human review and the final upstream recipe
+build remain on the [submission checklist](../packaging/README.md#before-submitting).

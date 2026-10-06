@@ -676,6 +676,9 @@ This downloads exact Git revisions into `.cache/test-deps/` and builds a separat
 vterm module there. It needs Git, Python 3, Emacs with SQLite and dynamic modules,
 CMake, a C compiler, Make, libtool and `tic` (ncurses). After the initial setup,
 `python3 scripts/check --suite all` reuses that cache without fetching dependencies.
+
+The [MELPA preparation guide](packaging/README.md) includes a recipe and an
+isolated build/install check for package archives. M-x Machina is not yet on MELPA.
 See [the testing guide](docs/testing.md) for targeted checks and CI coverage.
 
 Every run copies the package into a temporary directory, compiles with warnings

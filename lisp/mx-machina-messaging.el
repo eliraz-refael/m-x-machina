@@ -1,9 +1,30 @@
 ;;; mx-machina-messaging.el --- Correlated local agent messages -*- lexical-binding: t; -*-
+
+;; Copyright (C) 2026 Eliraz Kedmi
+;; Author: Eliraz Kedmi <eliraz.kedmi@gmail.com>
+;; Assisted-by: Codex:gpt-6
+;; Maintainer: Eliraz Kedmi <eliraz.kedmi@gmail.com>
 ;; SPDX-License-Identifier: GPL-3.0-or-later
+;; This file is part of M-x Machina.
+;;
+;; M-x Machina is free software: you can redistribute it and/or modify
+;; it under the terms of the GNU General Public License as published by
+;; the Free Software Foundation, either version 3 of the License, or
+;; (at your option) any later version.
+;;
+;; M-x Machina is distributed in the hope that it will be useful,
+;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;; GNU General Public License for more details.
+;;
+;; You should have received a copy of the GNU General Public License
+;; along with M-x Machina.  If not, see <https://www.gnu.org/licenses/>.
+
 ;;; Commentary:
-;; Opt-in delivery through existing transports. No background launches or replay.
+;; Opt-in delivery through existing transports.  No background launches or replay.
 ;;; Code:
 (require 'mx-machina)
+(require 'mx-machina-resources)
 (require 'json)
 (require 'server)
 (defvar eat-terminal)
@@ -26,7 +47,7 @@
   "Days to retain completed CLI messages and their idempotency keys."
   :type 'natnum :group 'mx-machina)
 (defconst mx-machina-messaging--script
-  (expand-file-name "../scripts/mxm" (file-name-directory (or load-file-name buffer-file-name))))
+  (mx-machina--resource-file "scripts/mxm"))
 (defconst mx-machina-messaging--pending '("queued" "sending" "working"))
 
 (defun mx-machina-messaging--directory ()
@@ -88,7 +109,8 @@
                            (list (mx-machina-session-folder session) (mx-machina-session-name session))) "/"))
 
 (defun mx-machina-messaging--cycle-p (sender target &optional seen)
-  "Return non-nil if adding SENDER to TARGET would create a pending cycle."
+  "Return non-nil if adding SENDER to TARGET would create a pending cycle.
+SEEN contains session IDs already visited during this traversal."
   (or (equal sender target)
       (and (not (member target seen))
            (seq-some (lambda (r)
@@ -341,7 +363,7 @@ explicit sender IDs, PID is attribution within the local user's trust boundary."
 
 (defun mx-machina-messaging-rpc (encoded)
   "Handle base64 ENCODED JSON from the local CLI; return base64 JSON.
-This is a fixed data endpoint. No supplied text is evaluated as Lisp."
+This is a fixed data endpoint.  No supplied text is evaluated as Lisp."
   (base64-encode-string
    (encode-coding-string
     (json-encode
@@ -386,7 +408,7 @@ This is a fixed data endpoint. No supplied text is evaluated as Lisp."
 ;;;###autoload
 (define-minor-mode mx-machina-messaging-mode
   "Allow local CLI requests to queue prompts and retrieve correlated replies.
-Enable explicitly. Messages and replies are stored privately under the registry.
+Enable explicitly.  Store messages and replies privately under the registry.
 Existing terminal prompts are held until confirmed empty or submitted normally."
   :global t :group 'mx-machina
   (if mx-machina-messaging-mode

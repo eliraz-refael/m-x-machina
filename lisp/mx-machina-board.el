@@ -1,7 +1,27 @@
 ;;; mx-machina-board.el --- Folder-scoped agent board -*- lexical-binding: t; -*-
+
+;; Copyright (C) 2026 Eliraz Kedmi
+;; Author: Eliraz Kedmi <eliraz.kedmi@gmail.com>
+;; Assisted-by: Codex:gpt-6
+;; Maintainer: Eliraz Kedmi <eliraz.kedmi@gmail.com>
 ;; SPDX-License-Identifier: GPL-3.0-or-later
+;; This file is part of M-x Machina.
+;;
+;; M-x Machina is free software: you can redistribute it and/or modify
+;; it under the terms of the GNU General Public License as published by
+;; the Free Software Foundation, either version 3 of the License, or
+;; (at your option) any later version.
+;;
+;; M-x Machina is distributed in the hope that it will be useful,
+;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;; GNU General Public License for more details.
+;;
+;; You should have received a copy of the GNU General Public License
+;; along with M-x Machina.  If not, see <https://www.gnu.org/licenses/>.
+
 ;;; Commentary:
-;; A native, optional overview. Cards reflect observed state, never edit it.
+;; A native, optional overview.  Cards reflect observed state, never edit it.
 ;;; Code:
 (require 'mx-machina)
 
@@ -247,7 +267,7 @@
     map))
 
 (define-derived-mode mx-machina-board-mode special-mode "Machina Board"
-  "Cards grouped by folder and observed activity. No manual status changes."
+  "Cards grouped by folder and observed activity.  No manual status changes."
   (setq-local truncate-lines t line-spacing 0.12
               header-line-format " Board · ? actions · [ ] attention · RET open · f folder · q return")
   (buffer-face-set 'fixed-pitch)

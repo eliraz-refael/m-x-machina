@@ -1,9 +1,29 @@
 ;;; mx-machina.el --- Persistent agent sessions and worktrees -*- lexical-binding: t; -*-
+
+;; Copyright (C) 2026 Eliraz Kedmi
+;; Author: Eliraz Kedmi <eliraz.kedmi@gmail.com>
+;; Assisted-by: Codex:gpt-6
+;; Maintainer: Eliraz Kedmi <eliraz.kedmi@gmail.com>
 ;; SPDX-License-Identifier: GPL-3.0-or-later
 ;; URL: https://github.com/eliraz-refael/m-x-machina
 ;; Version: 0.1.0
 ;; Package-Requires: ((emacs "29.1"))
 ;; Keywords: tools, processes
+;; This file is part of M-x Machina.
+;;
+;; M-x Machina is free software: you can redistribute it and/or modify
+;; it under the terms of the GNU General Public License as published by
+;; the Free Software Foundation, either version 3 of the License, or
+;; (at your option) any later version.
+;;
+;; M-x Machina is distributed in the hope that it will be useful,
+;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;; GNU General Public License for more details.
+;;
+;; You should have received a copy of the GNU General Public License
+;; along with M-x Machina.  If not, see <https://www.gnu.org/licenses/>.
+
 ;;; Commentary:
 ;; M-x Machina: your coding-agent workspace.  Create a session in an existing Git
 ;; worktree, launch it, and resume its exact backend conversation after restart.
@@ -62,7 +82,7 @@
   name)
 
 (defun mx-machina-create (name directory profile &optional folder)
-  "Persist NAME in existing Git worktree DIRECTORY using PROFILE.
+  "Persist NAME in existing Git worktree DIRECTORY using PROFILE and FOLDER.
 Return its stable ID.  This does not start an agent or change the worktree."
   (setq name (mx-machina--validate-name-profile name profile))
   (pcase-let ((`(,root ,branch) (mx-machina--worktree directory)))
@@ -255,7 +275,7 @@ Refuse a running agent unless STOP-RUNNING explicitly authorizes stopping it."
    (let* ((id (mx-machina--read-id))
           (running (gethash id mx-machina--running))
           (name (mx-machina-session-name (mx-machina-session id))))
-     (unless (yes-or-no-p (format "%sDelete agent record %s? Conversation files and worktree will remain. "
+     (unless (yes-or-no-p (format "Conversation files and worktree will remain.  %sDelete agent record %s? "
                                   (if running "Stop its process and " "") name))
        (user-error "Delete cancelled"))
      (list id running)))

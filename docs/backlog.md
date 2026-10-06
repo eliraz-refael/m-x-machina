@@ -183,6 +183,10 @@ This work can proceed alongside recovery; it gates a stable release.
   now consistently use `mx-machina`; persistent storage paths and the CLI protocol
   remain unchanged. The public source repository is published with
   protected PR-only `main`; a tagged release remains pending.
+  **MELPA preparation 2026-10-06:** the [recipe and archive checks](../packaging/README.md)
+  cover flattened installation, bundled scripts, optional Doom bindings and
+  installed transport regressions. Submission remains pending a month of public
+  maintenance, thorough human review and a final build from public upstream.
 
 ## 5. Explicit agent collaboration
 
