@@ -57,6 +57,9 @@ agents; the manager does not decide which tasks to assign.
 
 ## Load the package
 
+See the [installation guide](docs/installation.md) for plain Emacs and Doom
+dependency setup, native vterm builds, tested versions, and troubleshooting.
+
 Clone the repository:
 
 ```sh
@@ -70,16 +73,20 @@ For ordinary Emacs, evaluate:
 (require 'mx-machina)
 ```
 
-For Doom, load the example instead (adjust its location):
+For Doom, put this in `config.el` instead (use the checkout's absolute path):
 
 ```elisp
-(load! "m-x-machina/examples/doom.el")
+(load! "/absolute/path/to/m-x-machina/examples/doom.el")
 ```
 
 The example sets `SPC o a a` for the sidebar, `SPC o a n` for a new session,
 `SPC o a d` for the full dashboard, and `SPC o a z` to focus/restore.
 It installs Evil motion-state bindings for both overview views. Existing account
 profiles remain available.
+
+The example configures bindings; it does not install dependencies. If those are
+missing, the guide includes a pinned `packages.el` bundle and the `doom sync`
+step. For plain Emacs, choose and install an interface before starting an agent.
 
 You can evaluate the example temporarily using `M-x load-file`; adding it to
 your configuration makes it available after restart. If your Doom configuration
