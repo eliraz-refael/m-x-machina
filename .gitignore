@@ -12,3 +12,4 @@ __pycache__/
 /coverage/
 /tmp/
 /.cache/
+/.claude/task-state/
